@@ -2,13 +2,7 @@ package hana.differ.it
 
 import hana.differ.DuplicateChildIdException
 import hana.differ.ValueChange
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
-import kotlin.test.assertIs
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import kotlin.test.*
 
 class MachineDifferTest {
 

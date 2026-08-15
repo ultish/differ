@@ -11,6 +11,7 @@ import com.google.devtools.ksp.symbol.KSAnnotated
 import com.google.devtools.ksp.symbol.KSAnnotation
 import com.google.devtools.ksp.symbol.KSClassDeclaration
 import com.google.devtools.ksp.symbol.KSPropertyDeclaration
+import com.google.devtools.ksp.symbol.KSType
 import com.squareup.kotlinpoet.ClassName
 import com.squareup.kotlinpoet.CodeBlock
 import com.squareup.kotlinpoet.FileSpec
@@ -50,6 +51,8 @@ class DifferProcessor(
     private val logger: KSPLogger,
 ) : SymbolProcessor {
 
+    private val generated = HashSet<String>()
+
     override fun process(resolver: Resolver): List<KSAnnotated> {
         resolver.getSymbolsWithAnnotation(DIFFER)
             .filterIsInstance<KSClassDeclaration>()
@@ -58,6 +61,8 @@ class DifferProcessor(
     }
 
     private fun generate(cls: KSClassDeclaration) {
+        val id = cls.qualifiedName?.asString() ?: return
+        if (!generated.add(id)) return
         val annotation = cls.annotationOf(DIFFER) ?: return
         val model = cls.toClassName()
         val objectName = (annotation.argument("name") as? String)
@@ -142,8 +147,13 @@ class DifferProcessor(
                 }
                 prop.annotationOf(TRACKED_LIST) != null -> {
                     val matchBy = (prop.annotationOf(TRACKED_LIST)!!.argument("matchBy") as? String) ?: "id"
+                    val collection = prop.type.resolve()
+                    val kind = collection.collectionKind() ?: run {
+                        logger.error("@TrackedList property must be a List or Set of a class type", prop)
+                        return out
+                    }
                     val element = prop.elementDeclaration() ?: run {
-                        logger.error("@TrackedList property is not a List<T> of a class type", prop)
+                        logger.error("@TrackedList property must be a List or Set of a class type", prop)
                         return out
                     }
                     val keyProp = element.getDeclaredProperties().firstOrNull { it.simpleName.asString() == matchBy }
@@ -167,7 +177,8 @@ class DifferProcessor(
                         addedChange = typeName(addedPath),
                         removedChange = typeName(removedPath),
                         deltaName = typeName(name) + "Change",
-                        nullable = prop.type.resolve().isMarkedNullable,
+                        nullable = collection.isMarkedNullable,
+                        kind = kind,
                         children = emptyList(),
                     )
                     val children = analyze(element, "$path$name[].", spec, counter)
@@ -462,13 +473,8 @@ class DifferProcessor(
         val prior = "prior$d"
 
         out.beginControlFlow("run")
-        if (list.nullable) {
-            out.addStatement("val $oldItems = $oldExpr.${list.name} ?: emptyList()")
-            out.addStatement("val $newItems = $newExpr.${list.name} ?: emptyList()")
-        } else {
-            out.addStatement("val $oldItems = $oldExpr.${list.name}")
-            out.addStatement("val $newItems = $newExpr.${list.name}")
-        }
+        out.addStatement("val $oldItems = %L", list.snapshot("$oldExpr.${list.name}"))
+        out.addStatement("val $newItems = %L", list.snapshot("$newExpr.${list.name}"))
         out.addStatement("val $index = %T<%T, Int>($oldItems.size * 2)", HASH_MAP, list.keyType)
         out.beginControlFlow("for ($i in $oldItems.indices)")
         out.addStatement("val stored = $oldItems[$i].${list.matchBy}")
@@ -505,6 +511,35 @@ class DifferProcessor(
 
 private val MUTABLE_CHANGE_LIST = ClassName("kotlin.collections", "MutableList")
 private val HASH_MAP = ClassName("java.util", "HashMap")
+private val ARRAY_LIST = ClassName("java.util", "ArrayList")
+
+private enum class CollectionKind { LIST, SET }
+
+private fun KSType.collectionKind(): CollectionKind? {
+    val name = makeNotNullable().declaration.qualifiedName?.asString() ?: return null
+    return when (name) {
+        "kotlin.collections.List",
+        "kotlin.collections.MutableList",
+        "java.util.List",
+        "java.util.ArrayList",
+        -> CollectionKind.LIST
+        "kotlin.collections.Set",
+        "kotlin.collections.MutableSet",
+        "java.util.Set",
+        "java.util.HashSet",
+        "java.util.LinkedHashSet",
+        -> CollectionKind.SET
+        else -> null
+    }
+}
+
+private fun KeyedList.snapshot(expr: String): CodeBlock = when (kind) {
+    CollectionKind.LIST ->
+        if (nullable) CodeBlock.of("$expr ?: emptyList()") else CodeBlock.of("%L", expr)
+    CollectionKind.SET ->
+        if (nullable) CodeBlock.of("%T($expr ?: emptySet())", ARRAY_LIST)
+        else CodeBlock.of("%T($expr)", ARRAY_LIST)
+}
 
 private interface HasBit {
     val index: Int
@@ -576,6 +611,7 @@ private sealed class Node {
         val removedChange: String,
         val deltaName: String,
         val nullable: Boolean,
+        val kind: CollectionKind,
         val children: List<Node>,
     ) : Node() {
         override fun slots(): List<HasBit> {

@@ -23,7 +23,7 @@ annotation class Differ(val name: String = "")
 annotation class Tracked(val captureValues: Boolean = true)
 
 /**
- * Compare this collection by [matchBy], never by index.
+ * Compare this [List] or [Set] by [matchBy], never by iteration order.
  *
  * The element type does not need [@Differ]. Its [@Tracked] / [@TrackedNested] /
  * [@TrackedList] properties are inlined into the parent differ.

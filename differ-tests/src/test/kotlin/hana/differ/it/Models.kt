@@ -5,6 +5,19 @@ import hana.differ.Tracked
 import hana.differ.TrackedList
 import hana.differ.TrackedNested
 
+
+@Differ
+data class Pet(
+    val id: String,
+    @Tracked val name: String,
+    @TrackedNested val owner: Person,
+    @TrackedList val toys: Set<Toy>
+)
+
+data class Person(val id: String, val name: String, @Tracked val age: Int)
+
+data class Toy(val id: String, @Tracked val name: String)
+
 enum class ConnectionState { ENABLED, DISABLED }
 
 data class Port(
