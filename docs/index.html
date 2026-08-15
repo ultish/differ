@@ -140,6 +140,43 @@
       Annotate the fields you care about. The processor emits a <code>*Differ</code>
       that compares two values of the same type. <code>hasChanged</code> is a bit test.
       <code>changes</code> holds only what moved, keyed by id, never by list position.
+      The walk is ordinary generated Kotlin. No reflection, no JSON tree, no interpreter.
+    </p>
+
+    <h2>Why it is fast</h2>
+    <p>
+      Same strategy we measured in the original sample. 256 connections, unchanged
+      (the usual Kafka case), Java 25, Apple silicon. Lighter JMH than a capacity
+      run. A design signal, not a promise about your box.
+    </p>
+    <table class="listing">
+      <thead>
+        <tr>
+          <th>walk</th>
+          <th>ns/op</th>
+          <th>B/op</th>
+          <th>vs hand-written</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>hand-written baseline (11 attrs)</td><td>36,145</td><td>10,854</td><td>1.0×</td></tr>
+        <tr><td>generated, String vs UUID</td><td>22,940</td><td>61,936</td><td>1.6×</td></tr>
+        <tr class="hit"><td>generated, one type</td><td>4,592</td><td>12,672</td><td>7.9×</td></tr>
+        <tr><td>same, plus per-event convert</td><td>7,639</td><td>36,328</td><td>4.7×</td></tr>
+      </tbody>
+    </table>
+    <p>
+      The type split is the expensive part. <code>UUID.toString()</code> on every
+      child blew the dual-type rows up to ~62 KB/op. One comparable type drops
+      that to ~12.7 KB and 4.6 µs. Convert stored once on load. Convert the
+      Kafka record per message. Then this walk.
+    </p>
+    <p class="note">
+      The generated rows tracked 19 attributes, the baseline 11. They win while
+      doing more work. Unchanged and changed cost about the same because every
+      child is visited to find adds and removes. A stored hash of tracked fields
+      can skip the walk on no-ops. That is still the bigger lever if most events
+      do not change anything.
     </p>
 
     <h2>A real fixture</h2>
