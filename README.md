@@ -36,7 +36,7 @@ dependencyResolutionManagement {
     repositories {
         mavenCentral()
         maven {
-            url = uri("https://maven.pkg.github.com/<owner>/differ")
+            url = uri("https://maven.pkg.github.com/ultish/differ")
             credentials {
                 username = providers.gradleProperty("gpr.user").orElse(providers.environmentVariable("GITHUB_ACTOR"))
                 password = providers.gradleProperty("gpr.key").orElse(providers.environmentVariable("GITHUB_TOKEN"))
