@@ -51,6 +51,8 @@ class MachineDifferTest {
         val new = machine(connections = listOf(connection(state = ConnectionState.DISABLED)))
         val diff = MachineDiffer.diff(old, new)
 
+
+
         assertTrue(diff.hasChanged)
         assertTrue(diff.hasInputConnectionsState)
         assertFalse(diff.hasSetup)

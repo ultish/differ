@@ -125,7 +125,20 @@ class DifferProcessor(
                         logger.error("@TrackedNested property is not a class type", prop)
                         return out
                     }
-                    out += Nested(name, analyze(child, "$path$name.", list, counter))
+                    val slotPath = path + name
+                    val nullable = prop.type.resolve().isMarkedNullable
+                    val presenceIndex = if (nullable) counter[0]++ else null
+                    out += Nested(
+                        name = name,
+                        children = analyze(child, "$path$name.", list, counter),
+                        type = prop.type.toTypeName(),
+                        nullable = nullable,
+                        presenceIndex = presenceIndex,
+                        hasName = if (nullable) hasName(slotPath) else null,
+                        changeName = if (nullable) typeName(slotPath) else null,
+                        list = list,
+                        deltaProp = if (nullable) list?.let { deltaField(slotPath, it.name) } else null,
+                    )
                 }
                 prop.annotationOf(TRACKED_LIST) != null -> {
                     val matchBy = (prop.annotationOf(TRACKED_LIST)!!.argument("matchBy") as? String) ?: "id"
@@ -154,6 +167,7 @@ class DifferProcessor(
                         addedChange = typeName(addedPath),
                         removedChange = typeName(removedPath),
                         deltaName = typeName(name) + "Change",
+                        nullable = prop.type.resolve().isMarkedNullable,
                         children = emptyList(),
                     )
                     val children = analyze(element, "$path$name[].", spec, counter)
@@ -174,7 +188,7 @@ class DifferProcessor(
                     spec.addType(boundChange(changeType, node.addedChange, node.keyType, node.elementType))
                     spec.addType(boundChange(changeType, node.removedChange, node.keyType, node.elementType))
                 }
-                is Nested -> Unit
+                is Nested -> if (node.presenceIndex != null) spec.addType(presenceChange(changeType, node))
             }
         }
         return spec.build()
@@ -190,6 +204,23 @@ class DifferProcessor(
         }
         val ctor = FunSpec.constructorBuilder()
         val type = TypeSpec.classBuilder(node.changeName)
+            .addModifiers(KModifier.DATA)
+            .addSuperinterface(changeType)
+        if (node.list != null) {
+            ctor.addParameter("id", node.list.keyType)
+            type.addProperty(PropertySpec.builder("id", node.list.keyType).initializer("id").build())
+        }
+        ctor.addParameter("old", node.type)
+        ctor.addParameter("new", node.type)
+        type.addProperty(PropertySpec.builder("old", node.type).initializer("old").build())
+        type.addProperty(PropertySpec.builder("new", node.type).initializer("new").build())
+        type.primaryConstructor(ctor.build())
+        return type.build()
+    }
+
+    private fun presenceChange(changeType: ClassName, node: Nested): TypeSpec {
+        val ctor = FunSpec.constructorBuilder()
+        val type = TypeSpec.classBuilder(node.changeName!!)
             .addModifiers(KModifier.DATA)
             .addSuperinterface(changeType)
         if (node.list != null) {
@@ -221,10 +252,10 @@ class DifferProcessor(
 
     private fun deltaClass(list: KeyedList): TypeSpec {
         val spec = TypeSpec.classBuilder(list.deltaName)
-        for (field in list.fields()) {
+        for (field in list.deltaFields()) {
             val t = VALUE_CHANGE.parameterizedBy(field.type).copy(nullable = true)
             spec.addProperty(
-                PropertySpec.builder(field.deltaProp!!, t)
+                PropertySpec.builder(field.prop, t)
                     .mutable()
                     .initializer("null")
                     .build(),
@@ -324,14 +355,54 @@ class DifferProcessor(
         for (node in nodes) {
             when (node) {
                 is Scalar -> emitScalar(out, node, oldExpr, newExpr, keyLocal, changeType)
-                is Nested -> emitNodes(
-                    out, node.children,
-                    "$oldExpr.${node.name}", "$newExpr.${node.name}",
-                    depth, keyLocal, changeType,
-                )
+                is Nested -> emitNested(out, node, oldExpr, newExpr, depth, keyLocal, changeType)
                 is KeyedList -> emitList(out, node, oldExpr, newExpr, depth, changeType)
             }
         }
+    }
+
+    private fun emitNested(
+        out: CodeBlock.Builder,
+        node: Nested,
+        oldExpr: String,
+        newExpr: String,
+        depth: Int,
+        keyLocal: String?,
+        changeType: ClassName,
+    ) {
+        val oldAccess = "$oldExpr.${node.name}"
+        val newAccess = "$newExpr.${node.name}"
+        if (!node.nullable) {
+            emitNodes(out, node.children, oldAccess, newAccess, depth, keyLocal, changeType)
+            return
+        }
+        val presence = node.presenceIndex ?: return
+        out.beginControlFlow("if ($oldAccess == null && $newAccess == null)")
+        out.nextControlFlow("else if ($oldAccess == null || $newAccess == null)")
+        out.addStatement("mask = mask or %L", 1L shl presence)
+        if (node.list != null && keyLocal != null) {
+            out.addStatement(
+                "changes = %T.add(changes, %T.%N(%L, %L, %L))",
+                DIFFER_SUPPORT, changeType, node.changeName!!, keyLocal, oldAccess, newAccess,
+            )
+            if (node.deltaProp != null) {
+                val deltaType = ClassName(changeType.packageName, node.list.deltaName)
+                out.addStatement(
+                    "val held = %T.child(${node.list.name}, %L) { %T() }",
+                    DIFFER_SUPPORT, keyLocal, deltaType,
+                )
+                out.addStatement("${node.list.name} = held.map")
+                out.addStatement("held.value.${node.deltaProp} = %T(%L, %L)", VALUE_CHANGE, oldAccess, newAccess)
+            }
+        } else {
+            out.addStatement(
+                "changes = %T.add(changes, %T.%N(%L, %L))",
+                DIFFER_SUPPORT, changeType, node.changeName!!, oldAccess, newAccess,
+            )
+        }
+        out.nextControlFlow("else")
+        emitNodes(out, node.children, oldAccess, newAccess, depth, keyLocal, changeType)
+        out.endControlFlow()
     }
 
     private fun emitScalar(
@@ -391,8 +462,13 @@ class DifferProcessor(
         val prior = "prior$d"
 
         out.beginControlFlow("run")
-        out.addStatement("val $oldItems = $oldExpr.${list.name}")
-        out.addStatement("val $newItems = $newExpr.${list.name}")
+        if (list.nullable) {
+            out.addStatement("val $oldItems = $oldExpr.${list.name} ?: emptyList()")
+            out.addStatement("val $newItems = $newExpr.${list.name} ?: emptyList()")
+        } else {
+            out.addStatement("val $oldItems = $oldExpr.${list.name}")
+            out.addStatement("val $newItems = $newExpr.${list.name}")
+        }
         out.addStatement("val $index = %T<%T, Int>($oldItems.size * 2)", HASH_MAP, list.keyType)
         out.beginControlFlow("for ($i in $oldItems.indices)")
         out.addStatement("val stored = $oldItems[$i].${list.matchBy}")
@@ -435,6 +511,11 @@ private interface HasBit {
     val hasName: String
 }
 
+private data class PresenceBit(
+    override val index: Int,
+    override val hasName: String,
+) : HasBit
+
 private sealed class Node {
     abstract fun slots(): List<HasBit>
     abstract fun lists(): List<KeyedList>
@@ -456,8 +537,28 @@ private sealed class Node {
         override fun walk() = sequenceOf(this)
     }
 
-    data class Nested(val name: String, val children: List<Node>) : Node() {
-        override fun slots() = children.flatMap { it.slots() }
+    data class Nested(
+        val name: String,
+        val children: List<Node>,
+        val type: TypeName,
+        val nullable: Boolean,
+        val presenceIndex: Int?,
+        val hasName: String?,
+        val changeName: String?,
+        val list: KeyedList?,
+        val deltaProp: String?,
+    ) : Node() {
+        override fun slots(): List<HasBit> {
+            val bits = ArrayList<HasBit>()
+            val presence = presenceIndex
+            val presenceHas = hasName
+            if (presence != null && presenceHas != null) {
+                bits += PresenceBit(presence, presenceHas)
+            }
+            bits += children.flatMap { it.slots() }
+            return bits
+        }
+
         override fun lists() = children.flatMap { it.lists() }
         override fun walk() = sequenceOf(this) + children.asSequence().flatMap { it.walk() }
     }
@@ -474,6 +575,7 @@ private sealed class Node {
         val addedChange: String,
         val removedChange: String,
         val deltaName: String,
+        val nullable: Boolean,
         val children: List<Node>,
     ) : Node() {
         override fun slots(): List<HasBit> {
@@ -496,11 +598,16 @@ private sealed class Node {
     }
 }
 
-private fun KeyedList.fields(): List<Scalar> {
-    fun collect(nodes: List<Node>): List<Scalar> = nodes.flatMap { node ->
+private data class DeltaField(val prop: String, val type: TypeName)
+
+private fun KeyedList.deltaFields(): List<DeltaField> {
+    fun collect(nodes: List<Node>): List<DeltaField> = nodes.flatMap { node ->
         when (node) {
-            is Scalar -> listOf(node)
-            is Nested -> collect(node.children)
+            is Scalar -> listOf(DeltaField(node.deltaProp!!, node.type))
+            is Nested -> {
+                val self = node.deltaProp?.let { listOf(DeltaField(it, node.type)) } ?: emptyList()
+                self + collect(node.children)
+            }
             is KeyedList -> emptyList()
         }
     }
