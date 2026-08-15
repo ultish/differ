@@ -4,9 +4,9 @@ Compile-time, ID-keyed diffs for Kotlin data classes.
 
 Site: [ultish.github.io/differ](https://ultish.github.io/differ/)
 
-Annotate the fields you care about. KSP generates a `*Differ` that compares two values of the same type. Detection is a bit mask. Values are sealed events for the fields that actually changed. Child lists are matched by id, never by index.
+Annotate the fields you care about. KSP generates a `*Differ` that compares two values of the same type. Detection is a bit test. Values are sealed events for what actually changed. Children are matched by id, never by position.
 
-Wire formats stay at the boundary. Avro and Mongo can keep UUID-as-string. Convert once, then compare `Machine` to `Machine`.
+Convert Avro and Mongo at the boundary. The walk is same-type only, `Pet` versus `Pet`.
 
 ## Install
 
@@ -21,26 +21,7 @@ dependencies {
 }
 ```
 
-The Kotlin package is still `hana.differ`. The Maven group is `io.github.ultish` so Central will accept it.
-
-### Maven Local
-
-```sh
-./gradlew publishToMavenLocal
-```
-
-### Maven Central
-
-Claim the `io.github.ultish` namespace at [central.sonatype.org](https://central.sonatype.org/). Generate a portal user token. Create a GPG key and upload the public key to a keyserver. Then add these GitHub Actions secrets:
-
-- `MAVEN_CENTRAL_USERNAME`
-- `MAVEN_CENTRAL_PASSWORD`
-- `SIGNING_KEY` (ascii-armored private key from `gpg --export-secret-keys --armor`)
-- `SIGNING_PASSWORD`
-
-Run the `publish` workflow, or `./gradlew publishAndReleaseToMavenCentral` locally with the same values in `~/.gradle/gradle.properties`. Consumers then depend on Maven Central with no extra repo and no token.
-
-Until the first Central publish lands, use Maven Local.
+Maven Central. No extra repository. Imports are `hana.differ`.
 
 ## Usage
 
@@ -48,61 +29,77 @@ Until the first Central publish lands, use Maven Local.
 import hana.differ.Differ
 import hana.differ.Tracked
 import hana.differ.TrackedList
+import hana.differ.TrackedMap
 import hana.differ.TrackedNested
 
 @Differ
-data class Machine(
+data class Pet(
     val id: String,
-    val name: String,
-    @Tracked(captureValues = false) val setup: String,
-    @TrackedList val inputConnections: List<Connection>,
-)
-
-data class Connection(
-    val id: String,
-    @Tracked val state: ConnectionState,
-    @TrackedNested val fromPort: Port,
+    @Tracked val name: String,
+    @Tracked(captureValues = false) val notes: String,
+    @Tracked val nickname: String?,
+    @TrackedNested val owner: Person,
+    @TrackedNested val vet: Person?,
+    @TrackedList val toys: Set<Toy>,
+    @TrackedList val walks: List<Walk>,
+    @TrackedMap val tricks: Map<String, Trick>,
+    @TrackedMap val tags: Map<String, String>,
 )
 ```
 
-`Connection` and `Port` do not take `@Differ`. Nested `@Tracked` fields are inlined into `MachineDiffer`.
+`Person`, `Toy`, `Walk`, and `Trick` do not take `@Differ`. Their tagged fields fold into `PetDiffer`.
 
 ```kotlin
-val diff = MachineDiffer.diff(stored, incoming)
+val diff = PetDiffer.diff(stored, incoming)
 
 if (!diff.hasChanged) return
 
-if (diff.hasSetup) reloadSetup()
+if (diff.hasName) { /* bit test */ }
 
-if (diff.hasInputConnectionsState) {
-    for (change in diff.changes) {
-        if (change is MachineChange.InputConnectionsState) {
+for (change in diff.changes) {
+    when (change) {
+        is PetChange.ToysName -> {
             change.id
             change.old
             change.new
         }
+        is PetChange.Vet -> change.new
+        else -> {}
     }
 }
 
-diff.inputConnections["c1"]?.state?.new
+diff.toys["t1"]?.name?.new
+diff.tags["color"]?.value?.new
 ```
 
-`hasChanged` / `hasInputConnectionsState` are bit tests. `changes` and `inputConnections` contain only children that changed. You do not walk the original list again.
+`hasChanged` and `hasToysName` are bit tests. `changes` and the keyed maps contain only children that changed. You do not walk the original collection again.
 
-`@Tracked(captureValues = false)` still sets `hasSetup` and still emits `MachineChange.Setup`. It does not copy old/new.
+`@Tracked(captureValues = false)` still sets the bit and still emits a flag event. It does not copy old/new.
 
-A rename of a tracked property fails the build. A new untagged field is invisible.
+A rename of a tagged property fails the build. A new untagged field is invisible.
+
+## Collections
+
+`@TrackedList` is any `List` or `Set`, including `SortedSet` and `TreeSet`. A set is copied for the walk. Matching is by `matchBy` (default `id`), never by order.
+
+`@TrackedMap` is any `Map`, including `SortedMap` and `TreeMap`. The map key is the id. Object values walk `@Tracked` fields. Scalar values (`String`, numbers, enums) compare with `!=`.
+
+Nullable `List` / `Set` / `Map` treat `null` as empty.
+
+`@Tracked` nullable scalars compare with `!=`. `@TrackedNested` on `T?` records presence. Both null is unchanged. One null is a single event with the whole object. Both present walks the child fields.
+
+Primitive arrays (`IntArray` and the rest) are not keyed collections. Mark them `@Tracked` and compare the whole array.
 
 ## Modules
 
-`differ-annotations` is the runtime classpath (`@Differ`, `@Tracked`, `ValueChange`). `differ-processor` is KSP only. `differ-tests` is this repo's proof, not an artifact.
+`differ-annotations` is the runtime (`@Differ`, `@Tracked`, `ValueChange`). `differ-processor` is KSP only. `differ-tests` is this repo's proof, not an artifact.
 
 ## Limits
 
-The mask is a `LongArray`, so a fat document is not capped at 64 slots. Add/remove, nullable nested presence, and every nested leaf still each take one slot. Same-type comparison only. Identity defaults to a property named `id`.
+The mask is a `LongArray`, so a fat document is not capped at 64 slots. Add/remove, nullable nested presence, and every nested leaf each take one slot. Same-type comparison only.
 
-`@Tracked` nullable scalars compare with `!=`, so `null` is a normal old/new. `@TrackedNested` on `T?` records presence: both null is unchanged, one null is a single event with the whole object, both present walks the child fields. `@TrackedList` is any `List` or `Set`, including `SortedSet` / `TreeSet`. A Set is copied into a list for the walk. Matching is by `matchBy`, never by order.
+## Releasing
 
-`@TrackedMap` is any `Map`, including `SortedMap` / `TreeMap`. The map key is the id. Object values walk `@Tracked` fields. Scalar values (`String`, numbers, enums) compare with `!=`.
+Bump `differVersion` in `gradle.properties`. Push `main`. Run the `publish` workflow (needs `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY`, `SIGNING_PASSWORD`). Or `./gradlew publishToMavenLocal` on your machine.
 
-`List` / `Set` / `Map` that are nullable treat `null` as empty. Primitive arrays (`IntArray`, …) are not keyed collections. Mark them `@Tracked` and compare the whole array.
+Site files live in `docs/` and deploy to GitHub Pages on push.
