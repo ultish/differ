@@ -77,8 +77,16 @@ class DifferProcessor(
         val diffName = "${cls.simpleName.asString()}Diff"
         val changeName = "${cls.simpleName.asString()}Change"
 
+        val captureAll = (annotation.argument("captureValues") as? Boolean) ?: true
         val counter = intArrayOf(0)
-        val roots = analyze(cls, path = "", bag = null, counter = counter, ownerName = cls.simpleName.asString())
+        val roots = analyze(
+            cls,
+            path = "",
+            bag = null,
+            counter = counter,
+            ownerName = cls.simpleName.asString(),
+            forceNoCapture = !captureAll,
+        )
         val slotCount = counter[0]
         if (slotCount == 0) {
             logger.warn("@Differ class has no @Tracked properties; skipping", cls)
@@ -106,13 +114,18 @@ class DifferProcessor(
         bag: KeyedBag?,
         counter: IntArray,
         ownerName: String,
+        forceNoCapture: Boolean,
     ): List<Node> {
         val out = ArrayList<Node>()
         for (prop in cls.getDeclaredProperties()) {
             val name = prop.simpleName.asString()
             when {
                 prop.annotationOf(TRACKED) != null -> {
-                    val capture = (prop.annotationOf(TRACKED)!!.argument("captureValues") as? Boolean) ?: true
+                    val capture = if (forceNoCapture) {
+                        false
+                    } else {
+                        (prop.annotationOf(TRACKED)!!.argument("captureValues") as? Boolean) ?: true
+                    }
                     val index = counter[0]++
                     val slotPath = path + name
                     out += Scalar(
@@ -137,7 +150,7 @@ class DifferProcessor(
                     val presenceIndex = if (nullable) counter[0]++ else null
                     out += Nested(
                         name = name,
-                        children = analyze(child, "$path$name.", bag, counter, ownerName),
+                        children = analyze(child, "$path$name.", bag, counter, ownerName, forceNoCapture),
                         type = prop.type.toTypeName(),
                         nullable = nullable,
                         presenceIndex = presenceIndex,
@@ -184,7 +197,7 @@ class DifferProcessor(
                         kind = kind,
                         children = emptyList(),
                     )
-                    val children = analyze(element, "$path$name[].", spec, counter, ownerName)
+                    val children = analyze(element, "$path$name[].", spec, counter, ownerName, forceNoCapture)
                     out += spec.copy(children = children)
                 }
                 prop.annotationOf(TRACKED_MAP) != null -> {
@@ -226,7 +239,7 @@ class DifferProcessor(
                                 name = "",
                                 path = slotPath,
                                 type = valueKs.toTypeName(),
-                                captureValues = true,
+                                captureValues = !forceNoCapture,
                                 hasName = hasName(slotPath),
                                 changeName = typeName(slotPath),
                                 bag = spec,
@@ -238,7 +251,7 @@ class DifferProcessor(
                             logger.error("@TrackedMap value type is not a class", prop)
                             return out
                         }
-                        analyze(valueClass, "$path$name[].", spec, counter, ownerName)
+                        analyze(valueClass, "$path$name[].", spec, counter, ownerName, forceNoCapture)
                     }
                     out += spec.copy(children = children)
                 }

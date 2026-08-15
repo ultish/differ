@@ -6,6 +6,12 @@ import hana.differ.TrackedList
 import hana.differ.TrackedMap
 import hana.differ.TrackedNested
 
+@Differ(captureValues = false)
+data class FlagDoc(
+    val id: String,
+    @Tracked val name: String,
+)
+
 @Differ
 data class Pet(
     val id: String,
