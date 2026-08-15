@@ -1,6 +1,9 @@
 package hana.differ.bench;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.concurrent.TimeUnit;
+import org.javers.core.Javers;
+import org.javers.core.diff.Diff;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -32,12 +35,50 @@ public class PlantBenchmark {
     @Setup
     public void setup() {
         boolean flip = "oneLinkChanged".equals(scenario);
-        oldPlant = FixturesKt.plant(childCount, false);
-        newPlant = FixturesKt.plant(childCount, flip);
+        oldPlant = FixturesKt.plant(childCount, false, false);
+        newPlant = FixturesKt.plant(childCount, flip, true);
+    }
+
+    @State(Scope.Thread)
+    public static class JaversState {
+        private Javers javers;
+
+        @Setup
+        public void setup() {
+            javers = JaversPlant.INSTANCE.create();
+        }
+    }
+
+    @State(Scope.Thread)
+    public static class JsonState {
+        private ObjectMapper mapper;
+
+        @Setup
+        public void setup() {
+            mapper = JsonPlant.INSTANCE.mapper();
+        }
     }
 
     @Benchmark
-    public boolean diff() {
-        return PlantDiffer.INSTANCE.diff(oldPlant, newPlant).getHasChanged();
+    public boolean differ() {
+        PlantDiff diff = PlantDiffer.INSTANCE.diff(oldPlant, newPlant);
+        return diff.getHasChanged() | (diff.getChanges().size() != 0);
+    }
+
+    @Benchmark
+    public boolean handwritten() {
+        HandwrittenPlant.Result result = HandwrittenPlant.INSTANCE.diff(oldPlant, newPlant);
+        return result.getHasChanged() | (result.getChangeCount() != 0);
+    }
+
+    @Benchmark
+    public boolean javers(JaversState state) {
+        Diff diff = state.javers.compare(oldPlant, newPlant);
+        return diff.hasChanges() | (diff.getChanges().size() != 0);
+    }
+
+    @Benchmark
+    public boolean json(JsonState state) {
+        return JsonPlant.INSTANCE.diff(state.mapper, oldPlant, newPlant).size() != 0;
     }
 }
