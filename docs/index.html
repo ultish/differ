@@ -233,7 +233,7 @@ diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
       property fails the build. A new untagged field is invisible.
     </p>
 
-<pre><span class="cm">// generated. Do not edit. Every tagged path is a property.</span>
+<pre><span class="cm">// generated. Do not edit. One hasX / event per tagged path.</span>
 <span class="kw">object</span> PetDiffer {
   <span class="kw">fun</span> diff(old: Pet, new: Pet): PetDiff
 }
@@ -244,46 +244,19 @@ diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
   <span class="kw">val</span> hasNotes: Boolean
   <span class="kw">val</span> hasNickname: Boolean
   <span class="kw">val</span> hasOwnerAge: Boolean
-  <span class="kw">val</span> hasVet: Boolean
-  <span class="kw">val</span> hasVetAge: Boolean
-  <span class="kw">val</span> hasToysAdded: Boolean
-  <span class="kw">val</span> hasToysRemoved: Boolean
   <span class="kw">val</span> hasToysName: Boolean
-  <span class="kw">val</span> hasWalksAdded: Boolean
-  <span class="kw">val</span> hasWalksRemoved: Boolean
-  <span class="kw">val</span> hasWalksPark: Boolean
-  <span class="kw">val</span> hasTricksAdded: Boolean
-  <span class="kw">val</span> hasTricksRemoved: Boolean
-  <span class="kw">val</span> hasTricksLevel: Boolean
-  <span class="kw">val</span> hasTagsAdded: Boolean
-  <span class="kw">val</span> hasTagsRemoved: Boolean
-  <span class="kw">val</span> hasTags: Boolean
+  <span class="kw">val</span> hasToysAdded: Boolean
+  <span class="cm">  // ...</span>
   <span class="kw">val</span> changes: List&lt;PetChange&gt;
   <span class="kw">val</span> toys: Map&lt;String, PetToysChange&gt;
-  <span class="kw">val</span> walks: Map&lt;String, PetWalksChange&gt;
-  <span class="kw">val</span> tricks: Map&lt;String, PetTricksChange&gt;
-  <span class="kw">val</span> tags: Map&lt;String, PetTagsChange&gt;
+  <span class="cm">  // ...</span>
 }
 
 <span class="kw">sealed interface</span> PetChange {
   <span class="kw">data class</span> Name(<span class="kw">val</span> old: String, <span class="kw">val</span> new: String)
   <span class="kw">data object</span> Notes
-  <span class="kw">data class</span> Nickname(<span class="kw">val</span> old: String?, <span class="kw">val</span> new: String?)
-  <span class="kw">data class</span> OwnerAge(<span class="kw">val</span> old: Int, <span class="kw">val</span> new: Int)
-  <span class="kw">data class</span> Vet(<span class="kw">val</span> old: Person?, <span class="kw">val</span> new: Person?)
-  <span class="kw">data class</span> VetAge(<span class="kw">val</span> old: Int, <span class="kw">val</span> new: Int)
-  <span class="kw">data class</span> ToysAdded(<span class="kw">val</span> id: String, <span class="kw">val</span> item: Toy)
-  <span class="kw">data class</span> ToysRemoved(<span class="kw">val</span> id: String, <span class="kw">val</span> item: Toy)
   <span class="kw">data class</span> ToysName(<span class="kw">val</span> id: String, <span class="kw">val</span> old: String, <span class="kw">val</span> new: String)
-  <span class="kw">data class</span> WalksAdded(<span class="kw">val</span> id: String, <span class="kw">val</span> item: Walk)
-  <span class="kw">data class</span> WalksRemoved(<span class="kw">val</span> id: String, <span class="kw">val</span> item: Walk)
-  <span class="kw">data class</span> WalksPark(<span class="kw">val</span> id: String, <span class="kw">val</span> old: String, <span class="kw">val</span> new: String)
-  <span class="kw">data class</span> TricksAdded(<span class="kw">val</span> id: String, <span class="kw">val</span> item: Trick)
-  <span class="kw">data class</span> TricksRemoved(<span class="kw">val</span> id: String, <span class="kw">val</span> item: Trick)
-  <span class="kw">data class</span> TricksLevel(<span class="kw">val</span> id: String, <span class="kw">val</span> old: Int, <span class="kw">val</span> new: Int)
-  <span class="kw">data class</span> TagsAdded(<span class="kw">val</span> id: String, <span class="kw">val</span> item: String)
-  <span class="kw">data class</span> TagsRemoved(<span class="kw">val</span> id: String, <span class="kw">val</span> item: String)
-  <span class="kw">data class</span> Tags(<span class="kw">val</span> id: String, <span class="kw">val</span> old: String, <span class="kw">val</span> new: String)
+  <span class="cm">  // ...</span>
 }</pre>
 
     <h2>One run of that API</h2>
