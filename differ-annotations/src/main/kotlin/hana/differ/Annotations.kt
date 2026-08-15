@@ -25,12 +25,23 @@ annotation class Tracked(val captureValues: Boolean = true)
 /**
  * Compare this [List] or [Set] by [matchBy], never by iteration order.
  *
- * The element type does not need [@Differ]. Its [@Tracked] / [@TrackedNested] /
- * [@TrackedList] properties are inlined into the parent differ.
+ * `SortedSet` / `TreeSet` count as a Set. The element type does not need
+ * [@Differ]. Its [@Tracked] / [@TrackedNested] / [@TrackedList] properties
+ * are inlined into the parent differ.
  */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.SOURCE)
 annotation class TrackedList(val matchBy: String = "id")
+
+/**
+ * Compare this [Map] by key. The key is the identity. No [TrackedList.matchBy].
+ *
+ * `SortedMap` / `TreeMap` count as a Map. Object values walk their [@Tracked]
+ * fields. Scalar values (`String`, numbers, enums) compare with `!=`.
+ */
+@Target(AnnotationTarget.PROPERTY)
+@Retention(AnnotationRetention.SOURCE)
+annotation class TrackedMap
 
 /**
  * Descend into this nested object. Its type does not need [@Differ].

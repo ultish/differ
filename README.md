@@ -14,8 +14,8 @@ plugins {
 }
 
 dependencies {
-    implementation("hana.differ:differ-annotations:0.1.2")
-    ksp("hana.differ:differ-processor:0.1.2")
+    implementation("hana.differ:differ-annotations:0.1.3")
+    ksp("hana.differ:differ-processor:0.1.3")
 }
 ```
 
@@ -107,4 +107,8 @@ A rename of a tracked property fails the build. A new untagged field is invisibl
 
 One `Long` mask, 64 tracked slots including each list's add/remove, each nullable nested object's presence, and every nested leaf. Same-type comparison only. Identity defaults to a property named `id`.
 
-`@Tracked` nullable scalars compare with `!=`, so `null` is a normal old/new. `@TrackedNested` on `T?` records presence: both null is unchanged, one null is a single event with the whole object, both present walks the child fields. `@TrackedList` accepts `List` or `Set` (and the mutable variants). A `Set` is copied into a list for the walk so matching stays by id, not by hash order. `List<T>?` / `Set<T>?` treat `null` as empty.
+`@Tracked` nullable scalars compare with `!=`, so `null` is a normal old/new. `@TrackedNested` on `T?` records presence: both null is unchanged, one null is a single event with the whole object, both present walks the child fields. `@TrackedList` is any `List` or `Set`, including `SortedSet` / `TreeSet`. A Set is copied into a list for the walk. Matching is by `matchBy`, never by order.
+
+`@TrackedMap` is any `Map`, including `SortedMap` / `TreeMap`. The map key is the id. Object values walk `@Tracked` fields. Scalar values (`String`, numbers, enums) compare with `!=`.
+
+`List` / `Set` / `Map` that are nullable treat `null` as empty. Primitive arrays (`IntArray`, …) are not keyed collections. Mark them `@Tracked` and compare the whole array.
