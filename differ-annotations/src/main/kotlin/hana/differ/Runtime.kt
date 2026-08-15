@@ -1,4 +1,4 @@
-package dev.differ
+package hana.differ
 
 /** Old and new values for one changed field. */
 data class ValueChange<T>(val old: T, val new: T)

@@ -1,4 +1,4 @@
-package dev.differ.processor
+package hana.differ.processor
 
 import com.google.devtools.ksp.getDeclaredProperties
 import com.google.devtools.ksp.processing.CodeGenerator
@@ -26,16 +26,16 @@ import com.squareup.kotlinpoet.asClassName
 import com.squareup.kotlinpoet.ksp.toClassName
 import com.squareup.kotlinpoet.ksp.toTypeName
 import com.squareup.kotlinpoet.ksp.writeTo
-import dev.differ.processor.Node.KeyedList
-import dev.differ.processor.Node.Nested
-import dev.differ.processor.Node.Scalar
+import hana.differ.processor.Node.KeyedList
+import hana.differ.processor.Node.Nested
+import hana.differ.processor.Node.Scalar
 
 class DifferProcessorProvider : SymbolProcessorProvider {
     override fun create(environment: SymbolProcessorEnvironment): SymbolProcessor =
         DifferProcessor(environment.codeGenerator, environment.logger)
 }
 
-private const val ANNOTATION_PACKAGE = "dev.differ"
+private const val ANNOTATION_PACKAGE = "hana.differ"
 private const val DIFFER = "$ANNOTATION_PACKAGE.Differ"
 private const val TRACKED = "$ANNOTATION_PACKAGE.Tracked"
 private const val TRACKED_NESTED = "$ANNOTATION_PACKAGE.TrackedNested"

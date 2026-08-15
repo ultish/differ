@@ -1,7 +1,7 @@
-package dev.differ.it
+package hana.differ.it
 
-import dev.differ.DuplicateChildIdException
-import dev.differ.ValueChange
+import hana.differ.DuplicateChildIdException
+import hana.differ.ValueChange
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

@@ -14,8 +14,8 @@ plugins {
 }
 
 dependencies {
-    implementation("dev.differ:differ-annotations:0.1.0")
-    ksp("dev.differ:differ-processor:0.1.0")
+    implementation("hana.differ:differ-annotations:0.1.0")
+    ksp("hana.differ:differ-processor:0.1.0")
 }
 ```
 
@@ -51,6 +51,11 @@ Maven Central is a different host. It needs a verified group id, GPG signing, an
 ## Usage
 
 ```kotlin
+import hana.differ.Differ
+import hana.differ.Tracked
+import hana.differ.TrackedList
+import hana.differ.TrackedNested
+
 @Differ
 data class Machine(
     val id: String,

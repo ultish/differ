@@ -1,4 +1,4 @@
-package dev.differ
+package hana.differ
 
 /**
  * Generate a `*Differ` for this class. Both sides of the comparison are this

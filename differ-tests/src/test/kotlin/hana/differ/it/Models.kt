@@ -1,9 +1,9 @@
-package dev.differ.it
+package hana.differ.it
 
-import dev.differ.Differ
-import dev.differ.Tracked
-import dev.differ.TrackedList
-import dev.differ.TrackedNested
+import hana.differ.Differ
+import hana.differ.Tracked
+import hana.differ.TrackedList
+import hana.differ.TrackedNested
 
 enum class ConnectionState { ENABLED, DISABLED }
 
