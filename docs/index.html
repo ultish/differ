@@ -184,15 +184,19 @@
       <tbody>
         <tr><td>Hand-written, same contract</td><td>13 µs</td><td>0.6×</td></tr>
         <tr class="hit"><td>This library</td><td>21 µs</td><td>1×</td></tr>
-        <tr><td>JSON serialize + id-keyed walk</td><td>0.82 ms</td><td>39×</td></tr>
+        <tr><td>JSON Patch (Jackson + zjsonpatch)</td><td>0.82 ms</td><td>39×</td></tr>
         <tr><td>JaVers</td><td>3.7 ms</td><td>176×</td></tr>
       </tbody>
     </table>
     <p class="note" data-block="Benchmark note">
       Java 17, Apple silicon. Same fat <code>Plant</code>: nested site, two
       reversed link lists, alarm set, recipe map. All four match children by
-      id and record old/new. The hand walk is one you maintain. Differ is the
-      one KSP writes when the model changes. Re-measure on your documents.
+      id and record old/new. JSON is Jackson <code>valueToTree</code> plus a
+      patch. We used <a href="https://github.com/flipkart-incubator/zjsonpatch">zjsonpatch</a>
+      (RFC 6902). That library is positional, so a reversed list looks fully
+      changed. The timed walk matches children by id so the contract matches
+      Differ. The hand walk is one you maintain. Differ is the one KSP writes
+      when the model changes. Re-measure on your documents.
     </p>
 
     <h2>What you write</h2>

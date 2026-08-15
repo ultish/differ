@@ -96,7 +96,7 @@ Primitive arrays (`IntArray` and the rest) are not keyed collections. Mark them 
 
 ## Benchmark
 
-A fat `Plant` (nested site and address, optional failover, two reversed link lists, alarm set, recipe map, label map). On Java 17, 256 keyed children, unchanged: handwritten 13 µs, this library 21 µs, JSON 0.82 ms, JaVers 3.7 ms. The hand walk is faster. Differ is the one you do not maintain.
+A fat `Plant` (nested site and address, optional failover, two reversed link lists, alarm set, recipe map, label map). On Java 17, 256 keyed children, unchanged: handwritten 13 µs, this library 21 µs, JSON Patch (Jackson + zjsonpatch, id-keyed) 0.82 ms, JaVers 3.7 ms. The hand walk is faster. Differ is the one you do not maintain.
 
 ```sh
 ./gradlew :differ-benchmark:jmh
