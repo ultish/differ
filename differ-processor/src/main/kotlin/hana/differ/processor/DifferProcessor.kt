@@ -84,11 +84,6 @@ class DifferProcessor(
             logger.warn("@Differ class has no @Tracked properties; skipping", cls)
             return
         }
-        if (slotCount > 64) {
-            logger.error("@Differ class declares $slotCount tracked attributes; the Long mask holds 64", cls)
-            return
-        }
-
         val bags = roots.flatMap { it.bags() }
         val slots = roots.flatMap { it.slots() }
         val pkg = model.packageName
@@ -100,7 +95,7 @@ class DifferProcessor(
             .addType(changeInterface(changeType, roots))
             .apply { bags.forEach { addType(deltaClass(it)) } }
             .addType(rebuildDiffClass(diffType, slots, bags, changeType))
-            .addType(differObject(objectName, model, diffType, changeType, roots, bags))
+            .addType(differObject(objectName, model, diffType, changeType, roots, bags, slotCount))
             .build()
         file.writeTo(codeGenerator, aggregating = false, originatingKSFiles = listOfNotNull(cls.containingFile))
     }
@@ -348,13 +343,13 @@ class DifferProcessor(
         changeType: ClassName,
     ): TypeSpec {
         val ctor = FunSpec.constructorBuilder().addModifiers(KModifier.INTERNAL)
-        ctor.addParameter("mask", Long::class)
+        ctor.addParameter("mask", LongArray::class)
         ctor.addParameter("changes", List::class.asClassName().parameterizedBy(changeType))
         for (bag in bags) {
             ctor.addParameter(bag.name, MAP.parameterizedBy(bag.keyType, ClassName(diffType.packageName, bag.deltaName)))
         }
         val type = TypeSpec.classBuilder(diffType).primaryConstructor(ctor.build())
-        type.addProperty(PropertySpec.builder("mask", Long::class, KModifier.PRIVATE).initializer("mask").build())
+        type.addProperty(PropertySpec.builder("mask", LongArray::class, KModifier.PRIVATE).initializer("mask").build())
         type.addProperty(
             PropertySpec.builder("changes", List::class.asClassName().parameterizedBy(changeType))
                 .initializer("changes")
@@ -362,7 +357,7 @@ class DifferProcessor(
         )
         type.addProperty(
             PropertySpec.builder("hasChanged", Boolean::class)
-                .getter(FunSpec.getterBuilder().addStatement("return mask != 0L").build())
+                .getter(FunSpec.getterBuilder().addStatement("return %T.any(mask)", DIFFER_SUPPORT).build())
                 .build(),
         )
         for (slot in slots) {
@@ -370,7 +365,7 @@ class DifferProcessor(
                 PropertySpec.builder(slot.hasName, Boolean::class)
                     .getter(
                         FunSpec.getterBuilder()
-                            .addStatement("return mask and %L != 0L", 1L shl slot.index)
+                            .addStatement("return %T.test(mask, %L)", DIFFER_SUPPORT, slot.index)
                             .build(),
                     )
                     .build(),
@@ -390,9 +385,10 @@ class DifferProcessor(
         changeType: ClassName,
         roots: List<Node>,
         bags: List<KeyedBag>,
+        slotCount: Int,
     ): TypeSpec {
         val body = CodeBlock.builder()
-        body.addStatement("var mask = 0L")
+        body.addStatement("val mask = %T.bits(%L)", DIFFER_SUPPORT, slotCount)
         body.addStatement("var changes: %T = null", MUTABLE_CHANGE_LIST.parameterizedBy(changeType).copy(nullable = true))
         for (bag in bags) {
             val map = HASH_MAP.parameterizedBy(bag.keyType, ClassName(model.packageName, bag.deltaName))
@@ -457,7 +453,7 @@ class DifferProcessor(
         val presence = node.presenceIndex ?: return
         out.beginControlFlow("if ($oldAccess == null && $newAccess == null)")
         out.nextControlFlow("else if ($oldAccess == null || $newAccess == null)")
-        out.addStatement("mask = mask or %L", 1L shl presence)
+        out.addStatement("%T.set(mask, %L)", DIFFER_SUPPORT, presence)
         if (node.bag != null && keyLocal != null) {
             out.addStatement(
                 "changes = %T.add(changes, %T.%N(%L, %L, %L))",
@@ -495,7 +491,7 @@ class DifferProcessor(
         val newAccess = if (node.name.isEmpty()) newExpr else "$newExpr.${node.name}"
         val deltaType = node.bag?.let { ClassName(changeType.packageName, it.deltaName) }
         out.beginControlFlow("if ($oldAccess != $newAccess)")
-        out.addStatement("mask = mask or %L", 1L shl node.index)
+        out.addStatement("%T.set(mask, %L)", DIFFER_SUPPORT, node.index)
         if (node.captureValues) {
             if (node.bag != null && keyLocal != null && deltaType != null) {
                 out.addStatement(
@@ -553,7 +549,7 @@ class DifferProcessor(
         out.addStatement("val $key = $item.${list.matchBy}")
         out.addStatement("val $found = $index[$key]")
         out.beginControlFlow("if ($found == null)")
-        out.addStatement("mask = mask or %L", 1L shl list.addedIndex)
+        out.addStatement("%T.set(mask, %L)", DIFFER_SUPPORT, list.addedIndex)
         out.addStatement(
             "changes = %T.add(changes, %T.%N($key, $item))",
             DIFFER_SUPPORT, changeType, list.addedChange,
@@ -566,7 +562,7 @@ class DifferProcessor(
         out.endControlFlow()
         out.beginControlFlow("for ($i in $oldItems.indices)")
         out.addStatement("if ($visited[$i]) continue")
-        out.addStatement("mask = mask or %L", 1L shl list.removedIndex)
+        out.addStatement("%T.set(mask, %L)", DIFFER_SUPPORT, list.removedIndex)
         out.addStatement(
             "changes = %T.add(changes, %T.%N($oldItems[$i].${list.matchBy}, $oldItems[$i]))",
             DIFFER_SUPPORT, changeType, list.removedChange,
@@ -596,7 +592,7 @@ class DifferProcessor(
         out.beginControlFlow("for (($key, $item) in $newMap)")
         out.addStatement("val $prior = $oldMap[$key]")
         out.beginControlFlow("if ($prior == null)")
-        out.addStatement("mask = mask or %L", 1L shl map.addedIndex)
+        out.addStatement("%T.set(mask, %L)", DIFFER_SUPPORT, map.addedIndex)
         out.addStatement(
             "changes = %T.add(changes, %T.%N($key, $item))",
             DIFFER_SUPPORT, changeType, map.addedChange,
@@ -607,7 +603,7 @@ class DifferProcessor(
         out.endControlFlow()
         out.beginControlFlow("for (($key, $prior) in $oldMap)")
         out.beginControlFlow("if ($key !in $newMap)")
-        out.addStatement("mask = mask or %L", 1L shl map.removedIndex)
+        out.addStatement("%T.set(mask, %L)", DIFFER_SUPPORT, map.removedIndex)
         out.addStatement(
             "changes = %T.add(changes, %T.%N($key, $prior))",
             DIFFER_SUPPORT, changeType, map.removedChange,
