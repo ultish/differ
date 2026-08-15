@@ -155,44 +155,48 @@
 
     <h2>Why it is fast</h2>
     <p data-block="Speed lede">
-      The processor writes a straight-line field walk. No reflection, no JSON
-      tree, no spec interpreter. <code>hasChanged</code> is a bit. Old/new
-      values are allocated only for fields that moved. Children are looked up
-      by id, never scanned by list position.
+      You mark the fields that matter. At compile time KSP writes a
+      <code>*Differ</code> of ordinary Kotlin <code>if</code>s. There is no
+      reflection at runtime, no JSON tree, no interpreter. <code>hasChanged</code>
+      is a bit test. Old and new values are copied only for fields that moved.
+      Nested lists and maps are matched by id, so a shuffle is not a change.
     </p>
     <p data-block="Handwritten trade">
-      A careful hand walk of the same <code>Plant</code> is a bit faster. You
-      write that walk once, then again when <code>Link</code> gains a field.
-      Differ emits it. A rename of a tagged property fails the build. You get
-      bits, sealed events, and keyed maps without keeping a mask in sync by
-      hand.
+      You can write that walk yourself. On our bench it is a bit faster.
+      You then own every <code>if</code>, every bit, and every add/remove
+      branch. A new field is another edit. A rename can silently drop a check.
+      Differ regenerates the walk from the annotations. A tagged rename fails
+      the build. The result still has the bits, the sealed events, and the
+      keyed maps.
     </p>
     <p data-block="Same type">
-      Convert Avro and Mongo at the boundary. The walk is same-type only,
-      <code>Pet</code> versus <code>Pet</code>. If one side is
-      <code>String</code> ids and the other is <code>UUID</code>, convert
-      once when you load the document and once when the event arrives.
+      Both sides of a <code>diff</code> are the same Kotlin type. Convert
+      Avro, Mongo, or a Kafka payload when it arrives. If stored ids are
+      <code>String</code> and the event uses <code>UUID</code>, parse once at
+      that boundary. The generated walk then does plain <code>==</code>.
     </p>
     <table class="listing" data-container="Benchmark table">
       <thead>
         <tr>
-          <th>256 keyed children, unchanged</th>
+          <th>256 child objects, nothing changed</th>
           <th>time</th>
           <th>vs this library</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td>Hand-written, same contract</td><td>13 µs</td><td>0.6×</td></tr>
+        <tr><td>Hand-written walk of the same model</td><td>13 µs</td><td>0.6×</td></tr>
         <tr class="hit"><td>This library</td><td>21 µs</td><td>1×</td></tr>
-        <tr><td>JSON serialize + id-keyed walk</td><td>0.82 ms</td><td>39×</td></tr>
+        <tr><td>JSON Patch (Jackson + zjsonpatch)</td><td>0.82 ms</td><td>39×</td></tr>
         <tr><td>JaVers</td><td>3.7 ms</td><td>176×</td></tr>
       </tbody>
     </table>
     <p class="note" data-block="Benchmark note">
-      Java 17, Apple silicon. Same fat <code>Plant</code>: nested site, two
-      reversed link lists, alarm set, recipe map. All four match children by
-      id and record old/new. The hand walk is one you maintain. Differ is the
-      one KSP writes when the model changes. Re-measure on your documents.
+      Java 17, Apple silicon. One nested document: site, two id-keyed link
+      lists, an alarm set, a recipe map. All four rows match children by id
+      and record old/new. JSON is Jackson plus
+      <a href="https://github.com/flipkart-incubator/zjsonpatch">zjsonpatch</a>
+      (RFC 6902). That library compares arrays by position, so the timed walk
+      matches by id like Differ does. Re-measure on your documents.
     </p>
 
     <h2>What you write</h2>
