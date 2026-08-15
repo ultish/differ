@@ -3,20 +3,30 @@ package hana.differ.it
 import hana.differ.Differ
 import hana.differ.Tracked
 import hana.differ.TrackedList
+import hana.differ.TrackedMap
 import hana.differ.TrackedNested
-
 
 @Differ
 data class Pet(
     val id: String,
     @Tracked val name: String,
+    @Tracked(captureValues = false) val notes: String,
+    @Tracked val nickname: String?,
     @TrackedNested val owner: Person,
-    @TrackedList val toys: Set<Toy>
+    @TrackedNested val vet: Person?,
+    @TrackedList val toys: Set<Toy>,
+    @TrackedList val walks: List<Walk>,
+    @TrackedMap val tricks: Map<String, Trick>,
+    @TrackedMap val tags: Map<String, String>,
 )
 
 data class Person(val id: String, val name: String, @Tracked val age: Int)
 
 data class Toy(val id: String, @Tracked val name: String)
+
+data class Walk(val id: String, @Tracked val park: String)
+
+data class Trick(val id: String, @Tracked val level: Int)
 
 enum class ConnectionState { ENABLED, DISABLED }
 
