@@ -179,42 +179,6 @@
       do not change anything.
     </p>
 
-    <h2>A real fixture</h2>
-    <p>
-      One <code>Pet</code> from the test suite. Old on the left of the arrow.
-      New on the right. Untagged fields never appear.
-    </p>
-    <table class="listing">
-      <thead>
-        <tr>
-          <th class="slot">slot</th>
-          <th>bit</th>
-          <th>kind</th>
-          <th>what moved</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr class="hit"><td class="slot">00</td><td class="bit">hasName</td><td class="kind">scalar</td><td><span class="old">Hana</span> → <span class="new">Hana-chan</span></td></tr>
-        <tr class="hit"><td class="slot">01</td><td class="bit">hasNotes</td><td class="kind">flag only</td><td>changed, values not copied</td></tr>
-        <tr class="hit"><td class="slot">02</td><td class="bit">hasNickname</td><td class="kind">optional scalar</td><td><span class="old">null</span> → <span class="new">pup</span></td></tr>
-        <tr class="hit"><td class="slot">03</td><td class="bit">hasOwnerAge</td><td class="kind">nested</td><td>owner.age <span class="old">3</span> → <span class="new">4</span></td></tr>
-        <tr class="hit"><td class="slot">04</td><td class="bit">hasVet</td><td class="kind">optional nested</td><td><span class="old">null</span> → Kim. No hasVetAge.</td></tr>
-        <tr class="hit"><td class="slot">05</td><td class="bit">hasToysName</td><td class="kind">set field</td><td>toys[t1] ball → squeaky</td></tr>
-        <tr class="hit"><td class="slot">06</td><td class="bit">hasToysAdded</td><td class="kind">set +</td><td>toys[t2] rope</td></tr>
-        <tr><td class="slot">07</td><td>hasToysRemoved</td><td class="kind">set −</td><td>off</td></tr>
-        <tr class="hit"><td class="slot">08</td><td class="bit">hasWalksPark</td><td class="kind">list field</td><td>walks[w1] park → beach</td></tr>
-        <tr class="hit"><td class="slot">09</td><td class="bit">hasWalksAdded</td><td class="kind">list +</td><td>walks[w2] lake</td></tr>
-        <tr class="hit"><td class="slot">10</td><td class="bit">hasTricksLevel</td><td class="kind">map object</td><td>tricks[sit] 1 → 2</td></tr>
-        <tr class="hit"><td class="slot">11</td><td class="bit">hasTricksAdded</td><td class="kind">map +</td><td>tricks[paw]</td></tr>
-        <tr class="hit"><td class="slot">12</td><td class="bit">hasTags</td><td class="kind">map scalar</td><td>tags[color] red → cream</td></tr>
-        <tr class="hit"><td class="slot">13</td><td class="bit">hasTagsAdded</td><td class="kind">map +</td><td>tags[size] shiba</td></tr>
-      </tbody>
-    </table>
-    <p class="note">
-      Two hundred toys still share <code>hasToysName</code>. Slots are kinds, not rows.
-      The mask is a LongArray, so a fat document is not stuck at 64.
-    </p>
-
     <h2>What you write</h2>
     <div class="row2">
 <pre><span class="cm">// same type on both sides</span>
@@ -253,8 +217,68 @@ diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
     </div>
     <p>
       Child types do not take <code>@Differ</code>. Their tagged fields fold into
-      <code>PetDiffer</code>. A rename of a tagged property fails the build.
-      A new untagged field is invisible.
+      <code>PetDiffer</code>. KSP writes ordinary Kotlin. <code>diff.hasName</code>
+      is a property. <code>PetChange.ToysName</code> is a type. A typo does not
+      compile. A rename of a tagged property fails the build. A new untagged
+      field is invisible.
+    </p>
+
+<pre><span class="cm">// generated. Do not edit.</span>
+<span class="kw">class</span> PetDiff {
+  <span class="kw">val</span> hasChanged: Boolean
+  <span class="kw">val</span> hasName: Boolean
+  <span class="kw">val</span> hasToysName: Boolean
+  <span class="kw">val</span> hasToysAdded: Boolean
+  <span class="kw">val</span> changes: List&lt;PetChange&gt;
+  <span class="kw">val</span> toys: Map&lt;String, PetToysChange&gt;
+}
+
+<span class="kw">sealed interface</span> PetChange {
+  <span class="kw">data class</span> Name(<span class="kw">val</span> old: String, <span class="kw">val</span> new: String)
+  <span class="kw">data class</span> ToysName(<span class="kw">val</span> id: String, <span class="kw">val</span> old: String, <span class="kw">val</span> new: String)
+  <span class="kw">data class</span> ToysAdded(<span class="kw">val</span> id: String, <span class="kw">val</span> item: Toy)
+  <span class="kw">data object</span> Notes
+}</pre>
+
+    <h2>One run of that API</h2>
+    <p>
+      Same <code>Pet</code> from the test suite. Each row is one generated bit.
+      The name comes from the annotation path. <code>@Tracked val name</code>
+      becomes <code>hasName</code> and <code>PetChange.Name</code>.
+      <code>@TrackedList toys</code> plus <code>@Tracked name</code> on
+      <code>Toy</code> becomes <code>hasToysName</code>. KSP also emits
+      <code>hasToysAdded</code> / <code>hasToysRemoved</code> for every
+      keyed collection. There is no <code>has("toys[].name")</code> string.
+    </p>
+    <table class="listing">
+      <thead>
+        <tr>
+          <th class="slot">slot</th>
+          <th>generated bit</th>
+          <th>from</th>
+          <th>this run</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hit"><td class="slot">00</td><td class="bit">hasName</td><td class="kind">@Tracked name</td><td><span class="old">Hana</span> → <span class="new">Hana-chan</span></td></tr>
+        <tr class="hit"><td class="slot">01</td><td class="bit">hasNotes</td><td class="kind">@Tracked(captureValues = false) notes</td><td>bit on, no old/new</td></tr>
+        <tr class="hit"><td class="slot">02</td><td class="bit">hasNickname</td><td class="kind">@Tracked nickname: String?</td><td><span class="old">null</span> → <span class="new">pup</span></td></tr>
+        <tr class="hit"><td class="slot">03</td><td class="bit">hasOwnerAge</td><td class="kind">@TrackedNested owner + @Tracked age</td><td><span class="old">3</span> → <span class="new">4</span></td></tr>
+        <tr class="hit"><td class="slot">04</td><td class="bit">hasVet</td><td class="kind">@TrackedNested vet: Person?</td><td><span class="old">null</span> → Kim. Presence only. No hasVetAge.</td></tr>
+        <tr class="hit"><td class="slot">05</td><td class="bit">hasToysName</td><td class="kind">@TrackedList toys + @Tracked name</td><td>id t1, ball → squeaky</td></tr>
+        <tr class="hit"><td class="slot">06</td><td class="bit">hasToysAdded</td><td class="kind">KSP [+] on toys</td><td>id t2, rope</td></tr>
+        <tr><td class="slot">07</td><td>hasToysRemoved</td><td class="kind">KSP [−] on toys</td><td>off</td></tr>
+        <tr class="hit"><td class="slot">08</td><td class="bit">hasWalksPark</td><td class="kind">@TrackedList walks + @Tracked park</td><td>id w1, park → beach</td></tr>
+        <tr class="hit"><td class="slot">09</td><td class="bit">hasWalksAdded</td><td class="kind">KSP [+] on walks</td><td>id w2, lake</td></tr>
+        <tr class="hit"><td class="slot">10</td><td class="bit">hasTricksLevel</td><td class="kind">@TrackedMap tricks + @Tracked level</td><td>key sit, 1 → 2</td></tr>
+        <tr class="hit"><td class="slot">11</td><td class="bit">hasTricksAdded</td><td class="kind">KSP [+] on tricks</td><td>key paw</td></tr>
+        <tr class="hit"><td class="slot">12</td><td class="bit">hasTags</td><td class="kind">@TrackedMap tags (scalar V)</td><td>key color, red → cream</td></tr>
+        <tr class="hit"><td class="slot">13</td><td class="bit">hasTagsAdded</td><td class="kind">KSP [+] on tags</td><td>key size, shiba</td></tr>
+      </tbody>
+    </table>
+    <p class="note">
+      Two hundred toys still share <code>hasToysName</code>. Slots are kinds, not rows.
+      The mask is a LongArray, so a fat document is not stuck at 64.
     </p>
 
     <h2>Install</h2>
