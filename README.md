@@ -97,9 +97,3 @@ Primitive arrays (`IntArray` and the rest) are not keyed collections. Mark them 
 ## Limits
 
 The mask is a `LongArray`, so a fat document is not capped at 64 slots. Add/remove, nullable nested presence, and every nested leaf each take one slot. Same-type comparison only.
-
-## Releasing
-
-Bump `differVersion` in `gradle.properties`. Push `main`. Run the `publish` workflow (needs `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY`, `SIGNING_PASSWORD`). Or `./gradlew publishToMavenLocal` on your machine.
-
-Site files live in `docs/` and deploy to GitHub Pages on push.
