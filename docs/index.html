@@ -145,38 +145,38 @@
 
     <h2>Why it is fast</h2>
     <p>
-      Same strategy we measured in the original sample. 256 connections, unchanged
-      (the usual Kafka case), Java 25, Apple silicon. Lighter JMH than a capacity
-      run. A design signal, not a promise about your box.
+      The processor writes a straight-line field walk. No reflection, no JSON
+      tree, no spec interpreter. <code>hasChanged</code> is a bit. Old/new
+      values are allocated only for fields that moved. Children are looked up
+      by id in a <code>HashMap</code>, not scanned.
+    </p>
+    <p>
+      The other tax is the model. If one side is <code>String</code> ids and the
+      other is <code>UUID</code>, every child pays <code>toString()</code>.
+      Differ compares one type. Convert the stored document once when you load
+      it. Convert the Kafka record when it arrives. The walk then does plain
+      <code>==</code>.
     </p>
     <table class="listing">
       <thead>
         <tr>
-          <th>walk</th>
-          <th>ns/op</th>
-          <th>B/op</th>
-          <th>vs hand-written</th>
+          <th>256 keyed children, unchanged</th>
+          <th>time</th>
+          <th>alloc</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td>hand-written baseline (11 attrs)</td><td>36,145</td><td>10,854</td><td>1.0×</td></tr>
-        <tr><td>generated, String vs UUID</td><td>22,940</td><td>61,936</td><td>1.6×</td></tr>
-        <tr class="hit"><td>generated, one type</td><td>4,592</td><td>12,672</td><td>7.9×</td></tr>
-        <tr><td>same, plus per-event convert</td><td>7,639</td><td>36,328</td><td>4.7×</td></tr>
+        <tr><td>Hand-written field walk</td><td>36 µs</td><td>11 KB</td></tr>
+        <tr><td>Generated, String ids vs UUID ids</td><td>23 µs</td><td>62 KB</td></tr>
+        <tr class="hit"><td>Generated, one type (this library)</td><td>4.6 µs</td><td>13 KB</td></tr>
+        <tr><td>Same walk, convert the event every time</td><td>7.6 µs</td><td>36 KB</td></tr>
       </tbody>
     </table>
-    <p>
-      The type split is the expensive part. <code>UUID.toString()</code> on every
-      child blew the dual-type rows up to ~62 KB/op. One comparable type drops
-      that to ~12.7 KB and 4.6 µs. Convert stored once on load. Convert the
-      Kafka record per message. Then this walk.
-    </p>
     <p class="note">
-      The generated rows tracked 19 attributes, the baseline 11. They win while
-      doing more work. Unchanged and changed cost about the same because every
-      child is visited to find adds and removes. A stored hash of tracked fields
-      can skip the walk on no-ops. That is still the bigger lever if most events
-      do not change anything.
+      Java 25, Apple silicon. The generated walk tracked more fields than the
+      hand-written one. Re-measure on your documents. If most events change
+      nothing, a hash of the tracked fields stored next to the document skips
+      the walk entirely.
     </p>
 
     <h2>What you write</h2>
