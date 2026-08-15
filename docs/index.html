@@ -227,13 +227,17 @@ diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
     </div>
     <p>
       Child types do not take <code>@Differ</code>. Their tagged fields fold into
-      <code>PetDiffer</code>. KSP writes ordinary Kotlin. <code>diff.hasName</code>
-      is a property. <code>PetChange.ToysName</code> is a type. A typo does not
-      compile. A rename of a tagged property fails the build. A new untagged
-      field is invisible.
+      the generated file. <code>PetDiffer</code> is the entry.
+      <code>PetDiffer.diff</code> returns a <code>PetDiff</code>. The bits and
+      events live on that result. A typo does not compile. A rename of a tagged
+      property fails the build. A new untagged field is invisible.
     </p>
 
 <pre><span class="cm">// generated. Do not edit.</span>
+<span class="kw">object</span> PetDiffer {
+  <span class="kw">fun</span> diff(old: Pet, new: Pet): PetDiff
+}
+
 <span class="kw">class</span> PetDiff {
   <span class="kw">val</span> hasChanged: Boolean
   <span class="kw">val</span> hasName: Boolean
