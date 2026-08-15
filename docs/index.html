@@ -112,6 +112,16 @@
       .meta { text-align: left; }
     }
     .note { font-size: 13px; color: var(--quiet); max-width: 62ch; }
+    pre.structure {
+      background: transparent;
+      color: var(--ink);
+      border: 2px solid var(--ink);
+      padding: 14px 16px;
+      margin: 16px 0 20px;
+      font-size: 13px;
+    }
+    pre.structure .an { color: var(--rule); }
+    pre.structure .cm { color: var(--quiet); }
     footer {
       margin-top: 48px;
       border-top: 2px solid var(--ink);
@@ -242,14 +252,33 @@ diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
 
     <h2>One run of that API</h2>
     <p>
-      Same <code>Pet</code> from the test suite. Each row is one generated bit.
-      The name comes from the annotation path. <code>@Tracked val name</code>
-      becomes <code>hasName</code> and <code>PetChange.Name</code>.
-      <code>@TrackedList toys</code> plus <code>@Tracked name</code> on
-      <code>Toy</code> becomes <code>hasToysName</code>. KSP also emits
-      <code>hasToysAdded</code> / <code>hasToysRemoved</code> for every
-      keyed collection. There is no <code>has("toys[].name")</code> string.
+      This is the model KSP read. Each tagged path becomes a property on
+      <code>PetDiff</code> and a type on <code>PetChange</code>. The table
+      under it is one <code>diff</code> of that shape. There is no
+      <code>has("toys[].name")</code> string.
     </p>
+<pre class="structure"><span class="an">@Differ</span> Pet
+  id
+  <span class="an">@Tracked</span> name                              <span class="cm">hasName</span>
+  <span class="an">@Tracked</span>(captureValues = false) notes      <span class="cm">hasNotes</span>
+  <span class="an">@Tracked</span> nickname: String?                 <span class="cm">hasNickname</span>
+  <span class="an">@TrackedNested</span> owner: Person
+    <span class="an">@Tracked</span> age                             <span class="cm">hasOwnerAge</span>
+  <span class="an">@TrackedNested</span> vet: Person?
+    <span class="cm">presence</span>                                <span class="cm">hasVet</span>
+    <span class="an">@Tracked</span> age                             <span class="cm">hasVetAge</span>
+  <span class="an">@TrackedList</span> toys: Set&lt;Toy&gt;
+    <span class="cm">[+]  [-]</span>                                <span class="cm">hasToysAdded  hasToysRemoved</span>
+    <span class="an">@Tracked</span> name                             <span class="cm">hasToysName</span>
+  <span class="an">@TrackedList</span> walks: List&lt;Walk&gt;
+    <span class="cm">[+]  [-]</span>                                <span class="cm">hasWalksAdded  hasWalksRemoved</span>
+    <span class="an">@Tracked</span> park                             <span class="cm">hasWalksPark</span>
+  <span class="an">@TrackedMap</span> tricks: Map&lt;String, Trick&gt;
+    <span class="cm">[+]  [-]</span>                                <span class="cm">hasTricksAdded  hasTricksRemoved</span>
+    <span class="an">@Tracked</span> level                            <span class="cm">hasTricksLevel</span>
+  <span class="an">@TrackedMap</span> tags: Map&lt;String, String&gt;
+    <span class="cm">[+]  [-]</span>                                <span class="cm">hasTagsAdded  hasTagsRemoved</span>
+    <span class="cm">scalar value</span>                            <span class="cm">hasTags</span></pre>
     <table class="listing">
       <thead>
         <tr>
