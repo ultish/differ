@@ -96,14 +96,14 @@ Primitive arrays (`IntArray` and the rest) are not keyed collections. Mark them 
 
 ## Benchmark
 
-A fat `Plant` (nested site and address, optional failover, two reversed link lists, alarm set, recipe map, label map):
+A fat `Plant` (nested site and address, optional failover, two reversed link lists, alarm set, recipe map, label map). On Java 17, 256 keyed children, unchanged: handwritten 13 µs, this library 21 µs, JSON 0.82 ms, JaVers 3.7 ms. The hand walk is faster. Differ is the one you do not maintain.
 
 ```sh
 ./gradlew :differ-benchmark:jmh
 ```
 
-`-Pjmh.includes=PlantBenchmark` to limit. Child counts are 4, 32, and 256. Scenarios are unchanged and one flipped input link.
+`-Pjmh.includes=PlantBenchmark` or `IndexBenchmark` to limit.
 
 ## Limits
 
-The mask is a `LongArray`, so a fat document is not capped at 64 slots. Add/remove, nullable nested presence, and every nested leaf each take one slot. Same-type comparison only.
+The mask is a `Long`, then a `LongArray` past 64 slots. Add/remove, nullable nested presence, and every nested leaf each take one slot. Same-type comparison only.
