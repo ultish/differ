@@ -26,6 +26,8 @@ class ComparisonSmokeTest {
         assertTrue(handwritten.changes.isEmpty())
         assertTrue(json.changes.isEmpty())
         assertTrue(flag.changes.isEmpty())
+        assertFalse(OpenIndexPlant.diff(old, new).hasChanged)
+        assertFalse(OpenIndexPlant.diff(old, new, IndexPool()).hasChanged)
     }
 
     @Test
@@ -54,11 +56,37 @@ class ComparisonSmokeTest {
         assertEquals(LinkState.DISABLED, state.new)
 
         assertEquals(PlantFlagChange.InputLinksState, flag.changes.single { it is PlantFlagChange.InputLinksState })
+
+        val open = OpenIndexPlant.diff(old, new)
+        val reused = OpenIndexPlant.diff(old, new, IndexPool())
+        assertEquals(handwritten.changes.size, open.changes.size)
+        assertEquals(handwritten.changes.size, reused.changes.size)
+        val openState = open.changes.single { it.old == LinkState.ENABLED && it.new == LinkState.DISABLED }
+        assertEquals(LinkState.ENABLED, openState.old)
+        assertEquals(LinkState.DISABLED, openState.new)
         assertTrue(
             json.changes.any { change ->
                 (change.id == "in-2" || change.path.contains("inputLinks")) &&
                     change.path.contains("state")
             },
         )
+    }
+
+    @Test
+    fun addAndRemoveMatchHandwritten() {
+        val old = plant(4, flipMiddleInput = false, reverseLinks = false)
+        val grown = plant(4, flipMiddleInput = false, reverseLinks = true)
+        val sample = grown.inputLinks.first()
+        val new = grown.copy(
+            inputLinks = grown.inputLinks.filter { it.id != "in-0" } +
+                Link("in-new", LinkState.ENABLED, "m", "n", sample.fromPort, sample.toPort),
+        )
+        val handwritten = HandwrittenPlant.diff(old, new)
+        val open = OpenIndexPlant.diff(old, new)
+        assertEquals(handwritten.changes.size, open.changes.size)
+        assertTrue(handwritten.changes.any { it.id == "in-0" && it.new == null })
+        assertTrue(open.changes.any { it.id == "in-0" && it.new == null })
+        assertTrue(handwritten.changes.any { it.id == "in-new" && it.old == null })
+        assertTrue(open.changes.any { it.id == "in-new" && it.old == null })
     }
 }
