@@ -7,3 +7,4 @@ rootProject.name = "differ"
 include(":differ-annotations")
 include(":differ-processor")
 include(":differ-tests")
+include(":differ-benchmark")

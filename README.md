@@ -94,6 +94,16 @@ Primitive arrays (`IntArray` and the rest) are not keyed collections. Mark them 
 
 `differ-annotations` is the runtime (`@Differ`, `@Tracked`, `ValueChange`). `differ-processor` is KSP only. `differ-tests` is this repo's proof, not an artifact.
 
+## Benchmark
+
+A fat `Plant` (nested site and address, optional failover, two reversed link lists, alarm set, recipe map, label map):
+
+```sh
+./gradlew :differ-benchmark:jmh
+```
+
+`-Pjmh.includes=PlantBenchmark` to limit. Child counts are 4, 32, and 256. Scenarios are unchanged and one flipped input link.
+
 ## Limits
 
 The mask is a `LongArray`, so a fat document is not capped at 64 slots. Add/remove, nullable nested presence, and every nested leaf each take one slot. Same-type comparison only.
