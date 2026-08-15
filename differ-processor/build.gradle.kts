@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm")
-    `maven-publish`
+    id("com.vanniktech.maven.publish")
 }
 
 group = property("differGroup") as String
@@ -14,17 +14,4 @@ dependencies {
     implementation("com.google.devtools.ksp:symbol-processing-api:${property("kspVersion")}")
     implementation("com.squareup:kotlinpoet:${property("kotlinPoetVersion")}")
     implementation("com.squareup:kotlinpoet-ksp:${property("kotlinPoetVersion")}")
-}
-
-java {
-    withSourcesJar()
-    withJavadocJar()
-}
-
-publishing {
-    publications {
-        create<MavenPublication>("maven") {
-            from(components["java"])
-        }
-    }
 }

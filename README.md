@@ -16,10 +16,12 @@ plugins {
 }
 
 dependencies {
-    implementation("hana.differ:differ-annotations:0.1.4")
-    ksp("hana.differ:differ-processor:0.1.4")
+    implementation("io.github.ultish:differ-annotations:0.1.5")
+    ksp("io.github.ultish:differ-processor:0.1.5")
 }
 ```
+
+The Kotlin package is still `hana.differ`. The Maven group is `io.github.ultish` so Central will accept it.
 
 ### Maven Local
 
@@ -27,28 +29,18 @@ dependencies {
 ./gradlew publishToMavenLocal
 ```
 
-### GitHub Packages
+### Maven Central
 
-Push the repo to GitHub, then publish a GitHub Release (or run the `publish` workflow). Actions uploads `differ-annotations` and `differ-processor` with `GITHUB_TOKEN`. No extra secrets.
+Claim the `io.github.ultish` namespace at [central.sonatype.org](https://central.sonatype.org/). Generate a portal user token. Create a GPG key and upload the public key to a keyserver. Then add these GitHub Actions secrets:
 
-Consumers need a GitHub token even for a public package. In `settings.gradle.kts`:
+- `MAVEN_CENTRAL_USERNAME`
+- `MAVEN_CENTRAL_PASSWORD`
+- `SIGNING_KEY` (ascii-armored private key from `gpg --export-secret-keys --armor`)
+- `SIGNING_PASSWORD`
 
-```kotlin
-dependencyResolutionManagement {
-    repositories {
-        mavenCentral()
-        maven {
-            url = uri("https://maven.pkg.github.com/ultish/differ")
-            credentials {
-                username = providers.gradleProperty("gpr.user").orElse(providers.environmentVariable("GITHUB_ACTOR"))
-                password = providers.gradleProperty("gpr.key").orElse(providers.environmentVariable("GITHUB_TOKEN"))
-            }
-        }
-    }
-}
-```
+Run the `publish` workflow, or `./gradlew publishAndReleaseToMavenCentral` locally with the same values in `~/.gradle/gradle.properties`. Consumers then depend on Maven Central with no extra repo and no token.
 
-Maven Central is a different host. It needs a verified group id, GPG signing, and Central Portal credentials in Actions secrets. This repo does not do that yet.
+Until the first Central publish lands, use Maven Local.
 
 ## Usage
 
