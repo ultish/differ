@@ -55,3 +55,17 @@ private fun recipes(count: Int): Map<String, Recipe> =
         val id = "r-$i"
         id to Recipe(id, version = i, body = """{"steps":$i}""")
     }
+
+fun Plant.toFlag() = PlantFlag(
+    id = id,
+    name = name,
+    setup = setup,
+    status = status,
+    site = site,
+    failover = failover,
+    inputLinks = inputLinks,
+    outputLinks = outputLinks,
+    alarms = alarms,
+    recipes = recipes,
+    labels = labels,
+)

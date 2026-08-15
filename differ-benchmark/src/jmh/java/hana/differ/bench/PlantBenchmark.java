@@ -31,12 +31,16 @@ public class PlantBenchmark {
 
     private Plant oldPlant;
     private Plant newPlant;
+    private PlantFlag oldFlag;
+    private PlantFlag newFlag;
 
     @Setup
     public void setup() {
         boolean flip = "oneLinkChanged".equals(scenario);
         oldPlant = FixturesKt.plant(childCount, false, false);
         newPlant = FixturesKt.plant(childCount, flip, true);
+        oldFlag = FixturesKt.toFlag(oldPlant);
+        newFlag = FixturesKt.toFlag(newPlant);
     }
 
     @State(Scope.Thread)
@@ -62,23 +66,32 @@ public class PlantBenchmark {
     @Benchmark
     public boolean differ() {
         PlantDiff diff = PlantDiffer.INSTANCE.diff(oldPlant, newPlant);
+        return diff.getHasChanged() | (diff.getChanges().size() != 0) | (diff.getInputLinks().get("in-0") != null);
+    }
+
+    @Benchmark
+    public boolean differNoCapture() {
+        PlantFlagDiff diff = PlantFlagDiffer.INSTANCE.diff(oldFlag, newFlag);
         return diff.getHasChanged() | (diff.getChanges().size() != 0);
     }
 
     @Benchmark
     public boolean handwritten() {
         HandwrittenPlant.Result result = HandwrittenPlant.INSTANCE.diff(oldPlant, newPlant);
-        return result.getHasChanged() | (result.getChangeCount() != 0);
+        return result.getHasChanged()
+                | (result.getChanges().size() != 0)
+                | (result.getInputLinks().get("in-0") != null);
     }
 
     @Benchmark
     public boolean javers(JaversState state) {
         Diff diff = state.javers.compare(oldPlant, newPlant);
-        return diff.hasChanges() | (diff.getChanges().size() != 0);
+        return JaversPlant.INSTANCE.consume(diff);
     }
 
     @Benchmark
     public boolean json(JsonState state) {
-        return JsonPlant.INSTANCE.diff(state.mapper, oldPlant, newPlant).size() != 0;
+        JsonPlant.Result result = JsonPlant.INSTANCE.diff(state.mapper, oldPlant, newPlant);
+        return result.getHasChanged() | (result.getChanges().size() != 0);
     }
 }

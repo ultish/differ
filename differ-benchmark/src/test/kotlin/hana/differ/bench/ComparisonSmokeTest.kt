@@ -3,6 +3,7 @@ package hana.differ.bench
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class ComparisonSmokeTest {
@@ -14,13 +15,17 @@ class ComparisonSmokeTest {
         val handwritten = HandwrittenPlant.diff(old, new)
         val javers = JaversPlant.create().compare(old, new)
         val json = JsonPlant.diff(JsonPlant.mapper(), old, new)
+        val flag = PlantFlagDiffer.diff(old.toFlag(), new.toFlag())
 
         assertFalse(differ.hasChanged)
         assertFalse(handwritten.hasChanged)
-        assertEquals(0, handwritten.changeCount)
-        assertEquals(0, differ.changes.size)
-        assertFalse(javers.hasChanges())
-        assertTrue(json.size() > 0)
+        assertFalse(JaversPlant.consume(javers))
+        assertFalse(json.hasChanged)
+        assertFalse(flag.hasChanged)
+        assertTrue(differ.changes.isEmpty())
+        assertTrue(handwritten.changes.isEmpty())
+        assertTrue(json.changes.isEmpty())
+        assertTrue(flag.changes.isEmpty())
     }
 
     @Test
@@ -31,11 +36,29 @@ class ComparisonSmokeTest {
         val handwritten = HandwrittenPlant.diff(old, new)
         val javers = JaversPlant.create().compare(old, new)
         val json = JsonPlant.diff(JsonPlant.mapper(), old, new)
+        val flag = PlantFlagDiffer.diff(old.toFlag(), new.toFlag())
 
         assertTrue(differ.hasChanged)
         assertTrue(handwritten.hasChanged)
-        assertTrue(javers.hasChanges())
-        assertTrue(json.size() > 0)
-        assertEquals(differ.changes.size, handwritten.changeCount)
+        assertTrue(JaversPlant.consume(javers))
+        assertTrue(json.hasChanged)
+        assertTrue(flag.hasChanged)
+        assertEquals(differ.changes.size, handwritten.changes.size)
+
+        val capture = handwritten.changes.single { it.old == LinkState.ENABLED && it.new == LinkState.DISABLED }
+        assertEquals(LinkState.ENABLED, capture.old)
+        assertEquals(LinkState.DISABLED, capture.new)
+
+        val state = assertIs<PlantChange.InputLinksState>(differ.changes.single { it is PlantChange.InputLinksState })
+        assertEquals(LinkState.ENABLED, state.old)
+        assertEquals(LinkState.DISABLED, state.new)
+
+        assertEquals(PlantFlagChange.InputLinksState, flag.changes.single { it is PlantFlagChange.InputLinksState })
+        assertTrue(
+            json.changes.any { change ->
+                (change.id == "in-2" || change.path.contains("inputLinks")) &&
+                    change.path.contains("state")
+            },
+        )
     }
 }

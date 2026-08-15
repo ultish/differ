@@ -64,3 +64,18 @@ data class Plant(
     @TrackedMap val recipes: Map<String, Recipe>,
     @TrackedMap val labels: Map<String, String>,
 )
+
+@Differ(name = "PlantFlagDiffer", captureValues = false)
+data class PlantFlag(
+    val id: String,
+    @Tracked val name: String,
+    @Tracked(captureValues = false) val setup: String,
+    @Tracked val status: String?,
+    @TrackedNested val site: Site,
+    @TrackedNested val failover: Site?,
+    @TrackedList val inputLinks: List<Link>,
+    @TrackedList val outputLinks: List<Link>,
+    @TrackedList val alarms: Set<Alarm>,
+    @TrackedMap val recipes: Map<String, Recipe>,
+    @TrackedMap val labels: Map<String, String>,
+)
