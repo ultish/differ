@@ -1,6 +1,6 @@
 package hana.differ.bench
 
-fun plant(childCount: Int, flipMiddleInput: Boolean): Plant {
+fun plant(childCount: Int, flipMiddleInput: Boolean, reverseLinks: Boolean): Plant {
     val setup = """{"version":1,"cells":${childCount}}"""
     val site = site("s-main", "North", "Oslo")
     val failover = site("s-fail", "South", "Bergen")
@@ -11,8 +11,8 @@ fun plant(childCount: Int, flipMiddleInput: Boolean): Plant {
         status = "live",
         site = site,
         failover = failover,
-        inputLinks = links("in", childCount, flipMiddleInput),
-        outputLinks = links("out", childCount, flip = false),
+        inputLinks = links("in", childCount, flipMiddleInput, reverseLinks),
+        outputLinks = links("out", childCount, flip = false, reverseLinks),
         alarms = alarms(childCount.coerceAtMost(32)),
         recipes = recipes(16),
         labels = mapOf(
@@ -30,7 +30,7 @@ private fun site(id: String, region: String, city: String) = Site(
     address = Address(id = "addr-$id", street = "1 Dock", city = city, postcode = "0001"),
 )
 
-private fun links(prefix: String, count: Int, flip: Boolean): List<Link> {
+private fun links(prefix: String, count: Int, flip: Boolean, reverse: Boolean): List<Link> {
     val items = ArrayList<Link>(count)
     for (i in 0 until count) {
         val state = if (flip && i == count / 2) LinkState.DISABLED else LinkState.ENABLED
@@ -43,7 +43,7 @@ private fun links(prefix: String, count: Int, flip: Boolean): List<Link> {
             toPort = Port("tp-$prefix-$i", "in", "power", 400),
         )
     }
-    if (count > 1) items.reverse()
+    if (reverse && count > 1) items.reverse()
     return items
 }
 
@@ -55,3 +55,17 @@ private fun recipes(count: Int): Map<String, Recipe> =
         val id = "r-$i"
         id to Recipe(id, version = i, body = """{"steps":$i}""")
     }
+
+fun Plant.toFlag() = PlantFlag(
+    id = id,
+    name = name,
+    setup = setup,
+    status = status,
+    site = site,
+    failover = failover,
+    inputLinks = inputLinks,
+    outputLinks = outputLinks,
+    alarms = alarms,
+    recipes = recipes,
+    labels = labels,
+)

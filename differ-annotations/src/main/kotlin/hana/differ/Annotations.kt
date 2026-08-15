@@ -6,10 +6,15 @@ package hana.differ
  * only.
  *
  * [name] overrides the generated object (`MachineDiffer` by default).
+ *
+ * [captureValues] defaults to true. When false, every scalar in this differ
+ * is treated as [@Tracked] with `captureValues = false`, including inlined
+ * nested, list, and map leaves. A per-field `true` cannot override a false
+ * root.
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.SOURCE)
-annotation class Differ(val name: String = "")
+annotation class Differ(val name: String = "", val captureValues: Boolean = true)
 
 /**
  * Compare this property. Untagged properties are invisible.

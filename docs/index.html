@@ -154,39 +154,45 @@
     </p>
 
     <h2>Why it is fast</h2>
-    <p>
+    <p data-block="Speed lede">
       The processor writes a straight-line field walk. No reflection, no JSON
       tree, no spec interpreter. <code>hasChanged</code> is a bit. Old/new
       values are allocated only for fields that moved. Children are looked up
-      by id in a <code>HashMap</code>, not scanned.
+      by id, never scanned by list position.
     </p>
-    <p>
-      The other tax is the model. If one side is <code>String</code> ids and the
-      other is <code>UUID</code>, every child pays <code>toString()</code>.
-      Differ compares one type. Convert the stored document once when you load
-      it. Convert the Kafka record when it arrives. The walk then does plain
-      <code>==</code>.
+    <p data-block="Handwritten trade">
+      A careful hand walk of the same <code>Plant</code> is a bit faster. You
+      write that walk once, then again when <code>Link</code> gains a field.
+      Differ emits it. A rename of a tagged property fails the build. You get
+      bits, sealed events, and keyed maps without keeping a mask in sync by
+      hand.
     </p>
-    <table class="listing">
+    <p data-block="Same type">
+      Convert Avro and Mongo at the boundary. The walk is same-type only,
+      <code>Pet</code> versus <code>Pet</code>. If one side is
+      <code>String</code> ids and the other is <code>UUID</code>, convert
+      once when you load the document and once when the event arrives.
+    </p>
+    <table class="listing" data-container="Benchmark table">
       <thead>
         <tr>
           <th>256 keyed children, unchanged</th>
           <th>time</th>
-          <th>alloc</th>
+          <th>vs this library</th>
         </tr>
       </thead>
       <tbody>
-        <tr><td>Hand-written field walk</td><td>36 µs</td><td>11 KB</td></tr>
-        <tr><td>Generated, String ids vs UUID ids</td><td>23 µs</td><td>62 KB</td></tr>
-        <tr class="hit"><td>Generated, one type (this library)</td><td>4.6 µs</td><td>13 KB</td></tr>
-        <tr><td>Same walk, convert the event every time</td><td>7.6 µs</td><td>36 KB</td></tr>
+        <tr><td>Hand-written, same contract</td><td>13 µs</td><td>0.6×</td></tr>
+        <tr class="hit"><td>This library</td><td>21 µs</td><td>1×</td></tr>
+        <tr><td>JSON serialize + id-keyed walk</td><td>0.82 ms</td><td>39×</td></tr>
+        <tr><td>JaVers</td><td>3.7 ms</td><td>176×</td></tr>
       </tbody>
     </table>
-    <p class="note">
-      Java 25, Apple silicon. The generated walk tracked more fields than the
-      hand-written one. Re-measure on your documents. If most events change
-      nothing, a hash of the tracked fields stored next to the document skips
-      the walk entirely.
+    <p class="note" data-block="Benchmark note">
+      Java 17, Apple silicon. Same fat <code>Plant</code>: nested site, two
+      reversed link lists, alarm set, recipe map. All four match children by
+      id and record old/new. The hand walk is one you maintain. Differ is the
+      one KSP writes when the model changes. Re-measure on your documents.
     </p>
 
     <h2>What you write</h2>
@@ -316,7 +322,7 @@ diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
     </table>
     <p class="note">
       Two hundred toys still share <code>hasToysName</code>. Slots are kinds, not rows.
-      The mask is a LongArray, so a fat document is not stuck at 64.
+      The mask is a <code>Long</code>, then a <code>LongArray</code> past 64 slots.
     </p>
 
     <h2>Install</h2>
