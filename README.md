@@ -19,7 +19,34 @@ dependencies {
 }
 ```
 
-Publish the two artifacts to Maven Local with `./gradlew publishToMavenLocal`.
+### Maven Local
+
+```sh
+./gradlew publishToMavenLocal
+```
+
+### GitHub Packages
+
+Push the repo to GitHub, then publish a GitHub Release (or run the `publish` workflow). Actions uploads `differ-annotations` and `differ-processor` with `GITHUB_TOKEN`. No extra secrets.
+
+Consumers need a GitHub token even for a public package. In `settings.gradle.kts`:
+
+```kotlin
+dependencyResolutionManagement {
+    repositories {
+        mavenCentral()
+        maven {
+            url = uri("https://maven.pkg.github.com/<owner>/differ")
+            credentials {
+                username = providers.gradleProperty("gpr.user").orElse(providers.environmentVariable("GITHUB_ACTOR"))
+                password = providers.gradleProperty("gpr.key").orElse(providers.environmentVariable("GITHUB_TOKEN"))
+            }
+        }
+    }
+}
+```
+
+Maven Central is a different host. It needs a verified group id, GPG signing, and Central Portal credentials in Actions secrets. This repo does not do that yet.
 
 ## Usage
 
