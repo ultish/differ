@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Differ — typed diffs, generated at compile time</title>
+  <meta name="description" content="KSP generates a *Differ for your Kotlin data classes. Detection is a bit test. Values are sealed events for what actually changed." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #172016;
+      --rule: #2f4a32;
+      --bar: #c9d6c4;
+      --bar-alt: #dce6d8;
+      --pencil: #c4451d;
+      --quiet: #4a5c4c;
+      --paper: #dce6d8;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      color: var(--ink);
+      background:
+        repeating-linear-gradient(
+          180deg,
+          var(--bar) 0 28px,
+          var(--bar-alt) 28px 56px
+        );
+      font-family: "IBM Plex Mono", ui-monospace, monospace;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    a { color: var(--ink); }
+    a:hover { color: var(--pencil); }
+    a:focus-visible { outline: 2px solid var(--pencil); outline-offset: 2px; }
+    .wrap { max-width: 920px; margin: 0 auto; padding: 28px 20px 80px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 16px;
+      border-bottom: 2px solid var(--ink);
+      padding-bottom: 12px;
+      margin-bottom: 28px;
+    }
+    .brand {
+      font-family: Syne, sans-serif;
+      font-weight: 800;
+      font-size: clamp(42px, 8vw, 72px);
+      letter-spacing: -0.04em;
+      line-height: 0.85;
+    }
+    .meta { font-size: 12px; color: var(--quiet); text-align: right; }
+    h1 {
+      font-family: Syne, sans-serif;
+      font-weight: 700;
+      font-size: clamp(22px, 4vw, 32px);
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      max-width: 22ch;
+      margin: 0 0 12px;
+    }
+    h2 {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      border-top: 2px solid var(--ink);
+      padding-top: 10px;
+      margin: 40px 0 12px;
+    }
+    p { max-width: 62ch; }
+    .lede { font-size: 16px; max-width: 54ch; }
+    .listing {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+      font-size: 13px;
+    }
+    .listing th, .listing td {
+      text-align: left;
+      vertical-align: top;
+      padding: 6px 10px;
+      border-bottom: 1px solid color-mix(in srgb, var(--rule) 35%, transparent);
+    }
+    .listing th { font-weight: 600; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; }
+    .slot { color: var(--quiet); width: 3.2em; font-variant-numeric: tabular-nums; }
+    .kind { color: var(--quiet); }
+    .hit td { background: color-mix(in srgb, var(--pencil) 14%, transparent); }
+    .hit .bit { color: var(--pencil); font-weight: 600; }
+    .old { text-decoration: line-through; opacity: 0.7; }
+    .new { font-weight: 600; }
+    pre, code { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    pre {
+      background: var(--ink);
+      color: #e6efe4;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      line-height: 1.5;
+      margin: 0 0 16px;
+    }
+    .kw { color: #f0b48a; }
+    .an { color: #9fd0a4; }
+    .cm { color: #8aa08c; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 720px) {
+      .row2 { grid-template-columns: 1fr; }
+      header { flex-direction: column; }
+      .meta { text-align: left; }
+    }
+    .note { font-size: 13px; color: var(--quiet); max-width: 62ch; }
+    footer {
+      margin-top: 48px;
+      border-top: 2px solid var(--ink);
+      padding-top: 12px;
+      font-size: 12px;
+      color: var(--quiet);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">Differ</div>
+      <div class="meta">
+        hana.differ<br />
+        0.1.4<br />
+        <a href="https://github.com/ultish/differ">github.com/ultish/differ</a>
+      </div>
+    </header>
+
+    <h1>KSP writes the comparator. You keep the bits and the events.</h1>
+    <p class="lede">
+      Annotate the fields you care about. The processor emits a <code>*Differ</code>
+      that compares two values of the same type. <code>hasChanged</code> is a bit test.
+      <code>changes</code> holds only what moved, keyed by id, never by list position.
+    </p>
+
+    <h2>A real fixture</h2>
+    <p>
+      One <code>Pet</code> from the test suite. Old on the left of the arrow.
+      New on the right. Untagged fields never appear.
+    </p>
+    <table class="listing">
+      <thead>
+        <tr>
+          <th class="slot">slot</th>
+          <th>bit</th>
+          <th>kind</th>
+          <th>what moved</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="hit"><td class="slot">00</td><td class="bit">hasName</td><td class="kind">scalar</td><td><span class="old">Hana</span> → <span class="new">Hana-chan</span></td></tr>
+        <tr class="hit"><td class="slot">01</td><td class="bit">hasNotes</td><td class="kind">flag only</td><td>changed, values not copied</td></tr>
+        <tr class="hit"><td class="slot">02</td><td class="bit">hasNickname</td><td class="kind">optional scalar</td><td><span class="old">null</span> → <span class="new">pup</span></td></tr>
+        <tr class="hit"><td class="slot">03</td><td class="bit">hasOwnerAge</td><td class="kind">nested</td><td>owner.age <span class="old">3</span> → <span class="new">4</span></td></tr>
+        <tr class="hit"><td class="slot">04</td><td class="bit">hasVet</td><td class="kind">optional nested</td><td><span class="old">null</span> → Kim. No hasVetAge.</td></tr>
+        <tr class="hit"><td class="slot">05</td><td class="bit">hasToysName</td><td class="kind">set field</td><td>toys[t1] ball → squeaky</td></tr>
+        <tr class="hit"><td class="slot">06</td><td class="bit">hasToysAdded</td><td class="kind">set +</td><td>toys[t2] rope</td></tr>
+        <tr><td class="slot">07</td><td>hasToysRemoved</td><td class="kind">set −</td><td>off</td></tr>
+        <tr class="hit"><td class="slot">08</td><td class="bit">hasWalksPark</td><td class="kind">list field</td><td>walks[w1] park → beach</td></tr>
+        <tr class="hit"><td class="slot">09</td><td class="bit">hasWalksAdded</td><td class="kind">list +</td><td>walks[w2] lake</td></tr>
+        <tr class="hit"><td class="slot">10</td><td class="bit">hasTricksLevel</td><td class="kind">map object</td><td>tricks[sit] 1 → 2</td></tr>
+        <tr class="hit"><td class="slot">11</td><td class="bit">hasTricksAdded</td><td class="kind">map +</td><td>tricks[paw]</td></tr>
+        <tr class="hit"><td class="slot">12</td><td class="bit">hasTags</td><td class="kind">map scalar</td><td>tags[color] red → cream</td></tr>
+        <tr class="hit"><td class="slot">13</td><td class="bit">hasTagsAdded</td><td class="kind">map +</td><td>tags[size] shiba</td></tr>
+      </tbody>
+    </table>
+    <p class="note">
+      Two hundred toys still share <code>hasToysName</code>. Slots are kinds, not rows.
+      The mask is a LongArray, so a fat document is not stuck at 64.
+    </p>
+
+    <h2>What you write</h2>
+    <div class="row2">
+<pre><span class="cm">// same type on both sides</span>
+<span class="an">@Differ</span>
+<span class="kw">data class</span> Pet(
+  <span class="kw">val</span> id: String,
+  <span class="an">@Tracked</span> <span class="kw">val</span> name: String,
+  <span class="an">@Tracked</span>(captureValues = <span class="kw">false</span>)
+  <span class="kw">val</span> notes: String,
+  <span class="an">@Tracked</span> <span class="kw">val</span> nickname: String?,
+  <span class="an">@TrackedNested</span> <span class="kw">val</span> owner: Person,
+  <span class="an">@TrackedNested</span> <span class="kw">val</span> vet: Person?,
+  <span class="an">@TrackedList</span> <span class="kw">val</span> toys: Set&lt;Toy&gt;,
+  <span class="an">@TrackedList</span> <span class="kw">val</span> walks: List&lt;Walk&gt;,
+  <span class="an">@TrackedMap</span> <span class="kw">val</span> tricks: Map&lt;String, Trick&gt;,
+  <span class="an">@TrackedMap</span> <span class="kw">val</span> tags: Map&lt;String, String&gt;,
+)</pre>
+<pre><span class="kw">val</span> diff = PetDiffer.diff(old, new)
+<span class="kw">if</span> (!diff.hasChanged) <span class="kw">return</span>
+<span class="kw">if</span> (diff.hasName) { <span class="cm">/* bit test */</span> }
+
+<span class="kw">for</span> (change <span class="kw">in</span> diff.changes) {
+  <span class="kw">when</span> (change) {
+    <span class="kw">is</span> PetChange.ToysName -&gt; {
+      change.id
+      change.old
+      change.new
+    }
+    <span class="kw">is</span> PetChange.Vet -&gt; change.new
+    <span class="kw">else</span> -&gt; {}
+  }
+}
+
+diff.toys[<span class="an">"t1"</span>]?.name?.new
+diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
+    </div>
+    <p>
+      Child types do not take <code>@Differ</code>. Their tagged fields fold into
+      <code>PetDiffer</code>. A rename of a tagged property fails the build.
+      A new untagged field is invisible.
+    </p>
+
+    <h2>Install</h2>
+<pre>implementation(<span class="an">"hana.differ:differ-annotations:0.1.4"</span>)
+ksp(<span class="an">"hana.differ:differ-processor:0.1.4"</span>)</pre>
+    <p>
+      Published to GitHub Packages. A consumer needs a GitHub token even when
+      the package is public. Convert Avro and Mongo at the boundary. The walk
+      is <code>Pet</code> versus <code>Pet</code>.
+    </p>
+
+    <h2>Rules that matter</h2>
+    <p>
+      Lists, sets, and maps match by id (or map key), never by order.
+      <code>TreeSet</code> and <code>TreeMap</code> count. <code>null</code> list or map is empty.
+      Optional nested objects record presence. Both null is unchanged. One null
+      is a single event with the whole object. Primitive arrays are not keyed
+      collections. Mark them <code>@Tracked</code> and compare the whole array.
+    </p>
+
+    <footer>
+      hana is the Maven group. Differ is the library.
+      <a href="https://github.com/ultish/differ">Source</a>
+    </footer>
+  </div>
+</body>
+</html>

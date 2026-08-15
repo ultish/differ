@@ -2,6 +2,8 @@
 
 Compile-time, ID-keyed diffs for Kotlin data classes.
 
+Site: [ultish.github.io/differ](https://ultish.github.io/differ/)
+
 Annotate the fields you care about. KSP generates a `*Differ` that compares two values of the same type. Detection is a bit mask. Values are sealed events for the fields that actually changed. Child lists are matched by id, never by index.
 
 Wire formats stay at the boundary. Avro and Mongo can keep UUID-as-string. Convert once, then compare `Machine` to `Machine`.
