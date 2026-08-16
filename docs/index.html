@@ -140,7 +140,7 @@
       <div class="brand">Differ</div>
       <div class="meta">
         hana.differ<br />
-        0.1.6<br />
+        0.1.7<br />
         <a href="https://github.com/ultish/differ">github.com/ultish/differ</a>
       </div>
     </header>
@@ -330,12 +330,19 @@ diff.tags[<span class="an">"color"</span>]?.value?.new</pre>
     </p>
 
     <h2>Install</h2>
-<pre>implementation(<span class="an">"io.github.ultish:differ-annotations:0.1.6"</span>)
-ksp(<span class="an">"io.github.ultish:differ-processor:0.1.6"</span>)</pre>
+<pre>plugins {
+  kotlin(<span class="an">"jvm"</span>) version <span class="an">"2.1.21"</span> <span class="cm">// or newer</span>
+  id(<span class="an">"com.google.devtools.ksp"</span>) version <span class="an">"2.1.21-2.0.2"</span> <span class="cm">// match your Kotlin</span>
+}
+
+implementation(<span class="an">"io.github.ultish:differ-annotations:0.1.7"</span>)
+ksp(<span class="an">"io.github.ultish:differ-processor:0.1.7"</span>)</pre>
     <p class="note">
       Maven Central. Imports stay <code>hana.differ</code>.
-      Kotlin 2.1 or later. Apply a KSP plugin that matches your Kotlin.
-      The processor is the KSP 2.1 API. Newer KSP can run it.
+      Kotlin 2.1 is the floor. Apply a KSP plugin that matches
+      <em>your</em> Kotlin (<code>2.1.21-2.0.2</code>, <code>2.2.x-2.0.x</code>,
+      <code>2.3.x</code>). The processor is the KSP 2.1 API. Newer KSP can
+      run it.
     </p>
 
     <h2>Rules that matter</h2>

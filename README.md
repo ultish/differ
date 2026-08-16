@@ -10,22 +10,29 @@ Convert Avro and Mongo at the boundary. The walk is same-type only, `Pet` versus
 
 ## Install
 
+Requires Kotlin 2.1 or later. Apply a KSP plugin that matches **your**
+Kotlin. The processor is built against the KSP 2.1 API. A newer KSP
+host can run it.
+
 ```kotlin
 plugins {
-    id("com.google.devtools.ksp")
+    kotlin("jvm") version "2.1.21" // or newer
+    id("com.google.devtools.ksp") version "2.1.21-2.0.2" // match your Kotlin
 }
 
 dependencies {
-    implementation("io.github.ultish:differ-annotations:0.1.6")
-    ksp("io.github.ultish:differ-processor:0.1.6")
+    implementation("io.github.ultish:differ-annotations:0.1.7")
+    ksp("io.github.ultish:differ-processor:0.1.7")
 }
 ```
 
 Maven Central. No extra repository. Imports are `hana.differ`.
 
-Kotlin 2.1 or later. Apply a KSP plugin that matches **your** Kotlin
-(`2.1.21-2.0.2`, `2.2.x-2.0.x`, `2.3.x`, …). The processor is built against
-the KSP 2.1 API. A newer KSP host can run it.
+| Your Kotlin | KSP plugin |
+|---|---|
+| 2.1.21 | `2.1.21-2.0.2` |
+| 2.2.x | `2.2.x-2.0.x` |
+| 2.3 / 2.4 | `2.3.x` |
 
 ## Usage
 
