@@ -23,6 +23,10 @@ dependencies {
 
 Maven Central. No extra repository. Imports are `hana.differ`.
 
+Kotlin 2.1 or later. Apply a KSP plugin that matches **your** Kotlin
+(`2.1.21-2.0.2`, `2.2.x-2.0.x`, `2.3.x`, …). The processor is built against
+the KSP 2.1 API. A newer KSP host can run it.
+
 ## Usage
 
 ```kotlin
