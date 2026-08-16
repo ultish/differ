@@ -1,10 +1,21 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
+import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
+
 plugins {
-    kotlin("jvm") version "2.4.10" apply false
-    id("com.google.devtools.ksp") version "2.3.11" apply false
+    kotlin("jvm") version "2.1.21" apply false
+    id("com.google.devtools.ksp") version "2.1.21-2.0.2" apply false
     id("com.vanniktech.maven.publish") version "0.34.0" apply false
 }
 
 subprojects {
+    pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        extensions.configure<KotlinJvmProjectExtension> {
+            compilerOptions {
+                languageVersion.set(KotlinVersion.KOTLIN_2_1)
+                apiVersion.set(KotlinVersion.KOTLIN_2_1)
+            }
+        }
+    }
     pluginManager.withPlugin("com.vanniktech.maven.publish") {
         extensions.configure<com.vanniktech.maven.publish.MavenPublishBaseExtension> {
             coordinates(
