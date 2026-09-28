@@ -1,5 +1,10 @@
 # Differ
 
+<p align="center">
+  <img src="differ.png" alt="Differ" />
+</p>
+
+
 Compile-time, ID-keyed diffs for Kotlin data classes.
 
 Site: [ultish.github.io/differ](https://ultish.github.io/differ/)
