@@ -434,10 +434,10 @@ class DifferProcessor(
         }
         val noBags = bags.joinToString("") { ", emptyMap()" }
         if (compactMask) {
-            val removedMask = removedSlots.fold(0L) { acc, slot -> acc or (1L shl slot) }
+            val removedMask = if (removedSlots.isEmpty()) "0L" else removedSlots.joinToString(" or ") { "(1L shl $it)" }
             body.addStatement(
-                "return %T(%T.allLong(%L) and %LL.inv(), changes ?: emptyList()$noBags)",
-                diffType, DIFFER_SUPPORT, slotCount, removedMask,
+                "return %T(%T.allLong(%L) and ($removedMask).inv(), changes ?: emptyList()$noBags)",
+                diffType, DIFFER_SUPPORT, slotCount,
             )
         } else {
             body.addStatement("val mask = %T.allBits(%L)", DIFFER_SUPPORT, slotCount)
