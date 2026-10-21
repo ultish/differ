@@ -104,6 +104,17 @@ Nullable `List` / `Set` / `Map` treat `null` as empty.
 
 `@Tracked` nullable scalars compare with `!=`. `@TrackedNested` on `T?` records presence. Both null is unchanged. One null is a single event with the whole object. Both present walks the child fields.
 
+### Null old value
+
+`diff(old: T?, new: T)` accepts a `null` old value, such as a first save with nothing stored. Every tracked field counts as changed.
+
+- `hasChanged` is `true` and every `has*` bit is set, including the `Removed` bits.
+- Each `@Tracked` scalar emits a `<Name>Initial` event with only `new`. With `captureValues = false` it emits the usual flag event.
+- A `@TrackedNested` on `T?` that is present emits the presence event with `old = null`, then its child fields emit `Initial` events. A nested object that is `null` in `new` emits no event.
+- Every `@TrackedList` / `@TrackedMap` entry in `new` emits an `Added` event. The keyed maps on the diff stay empty.
+
+With a non-null old value nothing changes.
+
 Primitive arrays (`IntArray` and the rest) are not keyed collections. Mark them `@Tracked` and compare the whole array.
 
 ## Modules

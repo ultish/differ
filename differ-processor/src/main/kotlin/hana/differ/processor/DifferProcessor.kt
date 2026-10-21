@@ -266,7 +266,10 @@ class DifferProcessor(
             .addModifiers(KModifier.SEALED)
         for (node in roots.asSequence().flatMap { it.walk() }) {
             when (node) {
-                is Scalar -> spec.addType(scalarChange(changeType, node))
+                is Scalar -> {
+                    spec.addType(scalarChange(changeType, node))
+                    if (node.captureValues && node.bag == null) spec.addType(initialChange(changeType, node))
+                }
                 is KeyedList -> {
                     spec.addType(boundChange(changeType, node.addedChange, node.keyType, node.elementType))
                     spec.addType(boundChange(changeType, node.removedChange, node.keyType, node.elementType))
@@ -303,6 +306,14 @@ class DifferProcessor(
         type.primaryConstructor(ctor.build())
         return type.build()
     }
+
+    private fun initialChange(changeType: ClassName, node: Scalar): TypeSpec =
+        TypeSpec.classBuilder(node.changeName + INITIAL)
+            .addModifiers(KModifier.DATA)
+            .addSuperinterface(changeType)
+            .primaryConstructor(FunSpec.constructorBuilder().addParameter("new", node.type).build())
+            .addProperty(PropertySpec.builder("new", node.type).initializer("new").build())
+            .build()
 
     private fun presenceChange(changeType: ClassName, node: Nested): TypeSpec {
         val ctor = FunSpec.constructorBuilder()
@@ -411,6 +422,13 @@ class DifferProcessor(
         val compactMask = slotCount <= 64
         val emit = Emit(changeType, compactMask, ArrayList())
         val body = CodeBlock.builder()
+        body.beginControlFlow("if (old == null)")
+        body.addStatement("var changes: %T = null", MUTABLE_CHANGE_LIST.parameterizedBy(changeType).copy(nullable = true))
+        emitInitialNodes(body, roots, newExpr = "new", depth = 0, emit = emit)
+        val allBits = if (compactMask) "allLong" else "allBits"
+        val noBags = bags.joinToString("") { ", emptyMap()" }
+        body.addStatement("return %T(%T.$allBits(%L), changes ?: emptyList()$noBags)", diffType, DIFFER_SUPPORT, slotCount)
+        body.endControlFlow()
         if (compactMask) {
             body.addStatement("var mask = 0L")
         } else {
@@ -450,7 +468,7 @@ class DifferProcessor(
             )
             .addFunction(
                 FunSpec.builder("diff")
-                    .addParameter("old", model)
+                    .addParameter("old", model.copy(nullable = true))
                     .addParameter("new", model)
                     .returns(diffType)
                     .addCode(body.build())
@@ -488,6 +506,81 @@ class DifferProcessor(
                 is KeyedMap -> emitMap(out, node, oldExpr, newExpr, depth, emit)
             }
         }
+    }
+
+
+    private fun emitInitialNodes(out: CodeBlock.Builder, nodes: List<Node>, newExpr: String, depth: Int, emit: Emit) {
+        for (node in nodes) {
+            when (node) {
+                is Scalar -> emitInitialScalar(out, node, "$newExpr.${node.name}", emit)
+                is Nested -> emitInitialNested(out, node, newExpr, depth, emit)
+                is KeyedList -> emitInitialBound(out, node, newExpr, depth, emit)
+                is KeyedMap -> emitInitialMap(out, node, newExpr, depth, emit)
+            }
+        }
+    }
+
+    private fun emitInitialScalar(out: CodeBlock.Builder, node: Scalar, newAccess: String, emit: Emit) {
+        if (!node.captureValues) {
+            emitRecordScalar(out, node, newAccess, newAccess, null, emit)
+            return
+        }
+        val rec = "rec${node.changeName}$INITIAL"
+        val changeList = MUTABLE_CHANGE_LIST.parameterizedBy(emit.changeType).copy(nullable = true)
+        remember(emit, rec) {
+            FunSpec.builder(rec)
+                .addModifiers(KModifier.PRIVATE)
+                .addParameter("changes", changeList)
+                .addParameter("new", node.type)
+                .returns(changeList.copy(nullable = false))
+                .addStatement(
+                    "return %T.add(changes, %T.%N(new))",
+                    DIFFER_SUPPORT, emit.changeType, node.changeName + INITIAL,
+                )
+                .build()
+        }
+        out.addStatement("changes = $rec(changes, $newAccess)")
+    }
+
+    private fun emitInitialNested(out: CodeBlock.Builder, node: Nested, newExpr: String, depth: Int, emit: Emit) {
+        val access = "$newExpr.${node.name}"
+        if (!node.nullable) {
+            emitInitialNodes(out, node.children, access, depth, emit)
+            return
+        }
+        val local = "nested$depth"
+        val rec = "rec${node.changeName}"
+        val changeList = MUTABLE_CHANGE_LIST.parameterizedBy(emit.changeType).copy(nullable = true)
+        remember(emit, rec) {
+            FunSpec.builder(rec)
+                .addModifiers(KModifier.PRIVATE)
+                .addParameter("changes", changeList)
+                .addParameter("old", node.type)
+                .addParameter("new", node.type)
+                .returns(changeList.copy(nullable = false))
+                .addStatement("return %T.add(changes, %T.%N(old, new))", DIFFER_SUPPORT, emit.changeType, node.changeName!!)
+                .build()
+        }
+        out.addStatement("val $local = $access")
+        out.beginControlFlow("if ($local != null)")
+        out.addStatement("changes = $rec(changes, null, $local)")
+        emitInitialNodes(out, node.children, local, depth + 1, emit)
+        out.endControlFlow()
+    }
+
+    private fun emitInitialBound(out: CodeBlock.Builder, list: KeyedList, newExpr: String, depth: Int, emit: Emit) {
+        val item = "item$depth"
+        out.beginControlFlow("for ($item in %L)", list.snapshot("$newExpr.${list.name}"))
+        emitRecordBound(out, list.addedChange, list.keyType, list.elementType, "$item.${list.matchBy}", item, emit)
+        out.endControlFlow()
+    }
+
+    private fun emitInitialMap(out: CodeBlock.Builder, map: KeyedMap, newExpr: String, depth: Int, emit: Emit) {
+        val key = "k$depth"
+        val item = "item$depth"
+        out.beginControlFlow("for (($key, $item) in %L)", map.snapshot("$newExpr.${map.name}"))
+        emitRecordBound(out, map.addedChange, map.keyType, map.valueType, key, item, emit)
+        out.endControlFlow()
     }
 
     private fun emitNested(
@@ -767,6 +860,8 @@ class DifferProcessor(
         return null
     }
 }
+
+private const val INITIAL = "Initial"
 
 private val MUTABLE_CHANGE_LIST = ClassName("kotlin.collections", "MutableList")
 private val HASH_MAP = ClassName("java.util", "HashMap")
