@@ -1,6 +1,7 @@
 package hana.differ.it
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
@@ -21,5 +22,16 @@ class FatTest {
         assertFalse(diff.hasF01)
         assertFalse(diff.hasF63)
         assertFalse(diff.hasF64)
+    }
+
+    @Test
+    fun nullOldSetsEverySlotInTheLongArrayMask() {
+        val diff = FatDiffer.diff(null, fat(5 to 9))
+        assertTrue(diff.hasChanged)
+        assertTrue(diff.hasF00)
+        assertTrue(diff.hasF63)
+        assertTrue(diff.hasF64)
+        assertTrue(diff.hasF69)
+        assertEquals(70, diff.changes.size)
     }
 }

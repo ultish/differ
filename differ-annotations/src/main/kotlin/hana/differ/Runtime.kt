@@ -12,6 +12,14 @@ class DuplicateChildIdException(id: String) : IllegalArgumentException("Duplicat
 object DifferSupport {
     fun bits(slots: Int): LongArray = LongArray((slots + 63) ushr 6)
 
+    fun allLong(slots: Int): Long = -1L ushr (64 - slots)
+
+    fun allBits(slots: Int): LongArray {
+        val mask = bits(slots)
+        for (slot in 0 until slots) set(mask, slot)
+        return mask
+    }
+
     fun set(mask: LongArray, slot: Int) {
         val word = slot ushr 6
         mask[word] = mask[word] or (1L shl (slot and 63))
