@@ -26,8 +26,8 @@ plugins {
 }
 
 dependencies {
-    implementation("io.github.ultish:differ-annotations:0.1.8")
-    ksp("io.github.ultish:differ-processor:0.1.8")
+    implementation("io.github.ultish:differ-annotations:0.1.9")
+    ksp("io.github.ultish:differ-processor:0.1.9")
 }
 ```
 
