@@ -138,6 +138,7 @@ Pushing a `v*` tag publishes both artifacts to Maven Central through `.github/wo
 1. Set `differVersion` in `gradle.properties`, and the version in the README and `docs/index.html`.
 2. Commit and push `main`.
 3. `git tag v<version> && git push origin v<version>`.
+4. Optional: `gh release create v<version> --generate-notes` adds a GitHub Release page. The tag push already publishes to Maven Central, so this only adds the page and notes.
 
 The workflow runs `./gradlew publishAndReleaseToMavenCentral`. It needs the repository secrets `MAVEN_CENTRAL_USERNAME`, `MAVEN_CENTRAL_PASSWORD`, `SIGNING_KEY` and `SIGNING_PASSWORD`. A released version cannot be replaced, so bump the version rather than re-tagging. The workflow can also be run by hand from the Actions tab.
 
