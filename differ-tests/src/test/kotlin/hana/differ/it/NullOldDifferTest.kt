@@ -1,7 +1,9 @@
 package hana.differ.it
 
+import hana.differ.DifferSupport
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -21,7 +23,7 @@ class NullOldDifferTest {
     )
 
     @Test
-    fun everyBitIsSet() {
+    fun addedAndChangedBitsAreSetAndRemovedBitsAreNot() {
         val diff = PetDiffer.diff(null, pet(vet = Person("v1", "Bo", 40)))
         assertTrue(diff.hasChanged)
         assertTrue(diff.hasName)
@@ -31,16 +33,16 @@ class NullOldDifferTest {
         assertTrue(diff.hasVet)
         assertTrue(diff.hasVetAge)
         assertTrue(diff.hasToysAdded)
-        assertTrue(diff.hasToysRemoved)
+        assertFalse(diff.hasToysRemoved)
         assertTrue(diff.hasToysName)
         assertTrue(diff.hasWalksAdded)
-        assertTrue(diff.hasWalksRemoved)
+        assertFalse(diff.hasWalksRemoved)
         assertTrue(diff.hasWalksPark)
         assertTrue(diff.hasTricksAdded)
-        assertTrue(diff.hasTricksRemoved)
+        assertFalse(diff.hasTricksRemoved)
         assertTrue(diff.hasTricksLevel)
         assertTrue(diff.hasTagsAdded)
-        assertTrue(diff.hasTagsRemoved)
+        assertFalse(diff.hasTagsRemoved)
         assertTrue(diff.hasTags)
     }
 
@@ -78,7 +80,25 @@ class NullOldDifferTest {
         val tag = changes.filterIsInstance<PetChange.TagsAdded>().single()
         assertEquals("color", tag.id)
         assertEquals("brown", tag.item)
-        assertTrue(changes.none { it is PetChange.ToysRemoved || it is PetChange.TagsRemoved })
+    }
+
+    @Test
+    fun noRemovedEventsForNullOld() {
+        val changes = PetDiffer.diff(null, pet(vet = Person("v1", "Bo", 40))).changes
+        assertTrue(changes.isNotEmpty())
+        assertTrue(
+            changes.none {
+                it is PetChange.ToysRemoved || it is PetChange.WalksRemoved ||
+                    it is PetChange.TricksRemoved || it is PetChange.TagsRemoved
+            },
+        )
+    }
+
+    @Test
+    fun allLongOfZeroSlotsIsZero() {
+        assertEquals(0L, DifferSupport.allLong(0))
+        assertEquals(1L, DifferSupport.allLong(1))
+        assertEquals(-1L, DifferSupport.allLong(64))
     }
 
     @Test

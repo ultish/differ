@@ -108,7 +108,7 @@ Nullable `List` / `Set` / `Map` treat `null` as empty.
 
 `diff(old: T?, new: T)` accepts a `null` old value, such as a first save with nothing stored. Every tracked field counts as changed.
 
-- `hasChanged` is `true` and every `has*` bit is set, including the `Removed` bits.
+- `hasChanged` is `true` and every `has*` bit is set except the `Removed` bits of lists, sets and maps. Nothing was removed, so those bits stay clear and no `*Removed` event is emitted.
 - Each `@Tracked` scalar emits a `<Name>Initial` event with only `new`. With `captureValues = false` it emits the usual flag event.
 - A `@TrackedNested` on `T?` that is present emits the presence event with `old = null`, then its child fields emit `Initial` events. A nested object that is `null` in `new` emits no event.
 - Every `@TrackedList` / `@TrackedMap` entry in `new` emits an `Added` event. The keyed maps on the diff stay empty.
