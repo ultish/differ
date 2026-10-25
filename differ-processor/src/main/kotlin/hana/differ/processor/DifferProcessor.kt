@@ -427,7 +427,7 @@ class DifferProcessor(
         body.beginControlFlow("if (old == null)")
         body.addStatement("var changes: %T = null", MUTABLE_CHANGE_LIST.parameterizedBy(changeType).copy(nullable = true))
         emitInitialNodes(body, roots, newExpr = "new", depth = 0, emit = emit)
-        val removedSlots = roots.flatMap { it.walk().toList() }.flatMap {
+        val clearedSlots = roots.flatMap { it.walk().toList() }.flatMap {
             when (it) {
                 is KeyedList -> listOf(it.removedIndex)
                 is KeyedMap -> listOf(it.removedIndex)
@@ -437,14 +437,14 @@ class DifferProcessor(
         }
         val noBags = bags.joinToString("") { ", emptyMap()" }
         if (compactMask) {
-            val removedMask = if (removedSlots.isEmpty()) "0L" else removedSlots.joinToString(" or ") { "(1L shl $it)" }
+            val removedMask = if (clearedSlots.isEmpty()) "0L" else clearedSlots.joinToString(" or ") { "(1L shl $it)" }
             body.addStatement(
                 "return %T(%T.allLong(%L) and ($removedMask).inv(), changes ?: emptyList()$noBags)",
                 diffType, DIFFER_SUPPORT, slotCount,
             )
         } else {
             body.addStatement("val mask = %T.allBits(%L)", DIFFER_SUPPORT, slotCount)
-            for (slot in removedSlots) body.addStatement("%T.clear(mask, %L)", DIFFER_SUPPORT, slot)
+            for (slot in clearedSlots) body.addStatement("%T.clear(mask, %L)", DIFFER_SUPPORT, slot)
             body.addStatement("return %T(mask, changes ?: emptyList()$noBags)", diffType)
         }
         body.endControlFlow()
