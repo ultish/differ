@@ -22,10 +22,17 @@ annotation class Differ(val name: String = "", val captureValues: Boolean = true
  * [captureValues] controls only whether a change produces a typed event with
  * old/new. Detection always runs. Use `false` for blobs you must flag but
  * must not copy.
+ *
+ * [skipWhenNew] defaults to false. When true and `diff(old, new)` gets a `null`
+ * old value, this property sets no `has*` bit and emits no change event, so a
+ * default-valued flag does not read as a change on a first save. With a
+ * non-null old value the property is compared as usual. Works on root
+ * properties, on [@TrackedList] / [@TrackedMap] element properties and on
+ * [@TrackedNested] properties.
  */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.SOURCE)
-annotation class Tracked(val captureValues: Boolean = true)
+annotation class Tracked(val captureValues: Boolean = true, val skipWhenNew: Boolean = false)
 
 /**
  * Compare this [List] or [Set] by [matchBy], never by iteration order.

@@ -127,6 +127,7 @@ class DifferProcessor(
                     } else {
                         (prop.annotationOf(TRACKED)!!.argument("captureValues") as? Boolean) ?: true
                     }
+                    val skipWhenNew = (prop.annotationOf(TRACKED)!!.argument("skipWhenNew") as? Boolean) ?: false
                     val index = counter[0]++
                     val slotPath = path + name
                     out += Scalar(
@@ -135,6 +136,7 @@ class DifferProcessor(
                         path = slotPath,
                         type = prop.type.toTypeName(),
                         captureValues = capture,
+                        skipWhenNew = skipWhenNew,
                         hasName = hasName(slotPath),
                         changeName = typeName(slotPath),
                         bag = bag,
@@ -429,6 +431,7 @@ class DifferProcessor(
             when (it) {
                 is KeyedList -> listOf(it.removedIndex)
                 is KeyedMap -> listOf(it.removedIndex)
+                is Scalar -> if (it.skipWhenNew) listOf(it.index) else emptyList()
                 else -> emptyList()
             }
         }
@@ -537,6 +540,7 @@ class DifferProcessor(
     }
 
     private fun emitInitialScalar(out: CodeBlock.Builder, node: Scalar, newAccess: String, emit: Emit) {
+        if (node.skipWhenNew) return
         if (!node.captureValues) {
             emitRecordScalar(out, node, newAccess, newAccess, null, emit)
             return
@@ -946,6 +950,7 @@ private sealed class Node {
         val path: String,
         val type: TypeName,
         val captureValues: Boolean,
+        val skipWhenNew: Boolean = false,
         override val hasName: String,
         val changeName: String,
         val bag: KeyedBag?,

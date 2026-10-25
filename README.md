@@ -113,7 +113,9 @@ Nullable `List` / `Set` / `Map` treat `null` as empty.
 - A `@TrackedNested` on `T?` that is present emits the presence event with `old = null`, then its child fields emit `Initial` events. A nested object that is `null` in `new` emits no event.
 - Every `@TrackedList` / `@TrackedMap` entry in `new` emits an `Added` event. The keyed maps on the diff stay empty.
 
-With a non-null old value nothing changes.
+- `@Tracked(skipWhenNew = true)` opts a property out. With a `null` old value it sets no `has*` bit and emits no change event, so a default such as a `false` flag does not read as a change on a first save. It works on root properties, on `@TrackedList` / `@TrackedMap` element properties and on `@TrackedNested` properties. `hasChanged` is still `true` when other tracked properties are set.
+
+With a non-null old value nothing changes, including for `skipWhenNew` properties, which compare as usual.
 
 Primitive arrays (`IntArray` and the rest) are not keyed collections. Mark them `@Tracked` and compare the whole array.
 
